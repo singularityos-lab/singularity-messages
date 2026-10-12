@@ -1,0 +1,6 @@
+[Plugin]
+Module=messages-echo
+Name=Echo
+Description=A sample chat service that answers every message, to show how to add a service to Messages
+Icon=chat-message-new-symbolic
+X-Singularity-Host=dev.sinty.messages

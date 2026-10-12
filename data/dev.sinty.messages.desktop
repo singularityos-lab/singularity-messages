@@ -1,0 +1,15 @@
+[Desktop Entry]
+Name=Messages
+Comment=Chat on Nextcloud Talk, Google Chat, Teams and more in one place
+Exec=singularity-messages %U
+Icon=dev.sinty.messages
+Terminal=false
+Type=Application
+Categories=Network;Chat;InstantMessaging;
+Keywords=chat;messages;talk;nextcloud;teams;google;sms;im;
+StartupWMClass=dev.sinty.messages
+Actions=new-conversation;
+
+[Desktop Action new-conversation]
+Name=New Conversation
+Exec=singularity-messages --new-conversation

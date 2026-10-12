@@ -1,0 +1,56 @@
+<svg width="236" height="236" viewBox="0 0 236 236" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="back_front" x1="96" y1="22" x2="222" y2="160" gradientUnits="userSpaceOnUse">
+<stop offset="0%" stop-color="#6ff0b4"/>
+<stop offset="55%" stop-color="#22c47e"/>
+<stop offset="100%" stop-color="#0f9a5f"/>
+</linearGradient>
+<linearGradient id="back_depth" x1="96" y1="22" x2="222" y2="168" gradientUnits="userSpaceOnUse">
+<stop offset="0%" stop-color="#128a57"/>
+<stop offset="100%" stop-color="#075c39"/>
+</linearGradient>
+<linearGradient id="main_front" x1="18" y1="70" x2="168" y2="214" gradientUnits="userSpaceOnUse">
+<stop offset="0%" stop-color="#7cc4ff"/>
+<stop offset="55%" stop-color="#2f8cf0"/>
+<stop offset="100%" stop-color="#1a5fc9"/>
+</linearGradient>
+<linearGradient id="main_depth" x1="18" y1="70" x2="168" y2="222" gradientUnits="userSpaceOnUse">
+<stop offset="0%" stop-color="#1c5cb4"/>
+<stop offset="100%" stop-color="#0d3a7d"/>
+</linearGradient>
+<radialGradient id="bloom_back" cx="122" cy="34" r="90" gradientUnits="userSpaceOnUse">
+<stop offset="0%" stop-color="white" stop-opacity="0.5"/>
+<stop offset="100%" stop-color="white" stop-opacity="0"/>
+</radialGradient>
+<radialGradient id="bloom_main" cx="46" cy="84" r="110" gradientUnits="userSpaceOnUse">
+<stop offset="0%" stop-color="white" stop-opacity="0.5"/>
+<stop offset="100%" stop-color="white" stop-opacity="0"/>
+</radialGradient>
+<filter id="shadow_back" x="80" y="10" width="156" height="170" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#04452a" flood-opacity="0.5"/></filter>
+<filter id="shadow_main" x="4" y="58" width="180" height="172" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0b2a66" flood-opacity="0.55"/></filter>
+<filter id="shadow_dots" x="40" y="110" width="110" height="50" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0b2a66" flood-opacity="0.45"/></filter>
+<clipPath id="clip_back">
+<path d="M130 22H192C209 22 222 35 222 52V100C222 117 209 130 192 130H186L188 154C188 159 183 161 179 158L150 130H130C113 130 100 117 100 100V52C100 35 113 22 130 22Z"/>
+</clipPath>
+<clipPath id="clip_main">
+<path d="M52 70H138C155 70 168 83 168 100V156C168 173 155 186 138 186H92L58 212C53 216 47 213 49 207L56 186H52C35 186 22 173 22 156V100C22 83 35 70 52 70Z"/>
+</clipPath>
+</defs>
+<path d="M130 30H192C209 30 222 43 222 60V108C222 125 209 138 192 138H186L188 162C188 167 183 169 179 166L150 138H130C113 138 100 125 100 108V60C100 43 113 30 130 30Z" fill="url(#back_depth)"/>
+<path d="M130 22H192C209 22 222 35 222 52V100C222 117 209 130 192 130H186L188 154C188 159 183 161 179 158L150 130H130C113 130 100 117 100 100V52C100 35 113 22 130 22Z" fill="url(#back_front)" filter="url(#shadow_back)"/>
+<g clip-path="url(#clip_back)">
+<circle cx="122" cy="34" r="90" fill="url(#bloom_back)"/>
+</g>
+<path d="M130 22H192C209 22 222 35 222 52V100C222 117 209 130 192 130H186L188 154C188 159 183 161 179 158L150 130H130C113 130 100 117 100 100V52C100 35 113 22 130 22Z" stroke="white" stroke-opacity="0.45" stroke-width="2"/>
+<path d="M52 78H138C155 78 168 91 168 108V164C168 181 155 194 138 194H92L58 220C53 224 47 221 49 215L56 194H52C35 194 22 181 22 164V108C22 91 35 78 52 78Z" fill="url(#main_depth)"/>
+<path d="M52 70H138C155 70 168 83 168 100V156C168 173 155 186 138 186H92L58 212C53 216 47 213 49 207L56 186H52C35 186 22 173 22 156V100C22 83 35 70 52 70Z" fill="url(#main_front)" filter="url(#shadow_main)"/>
+<g clip-path="url(#clip_main)">
+<circle cx="46" cy="84" r="110" fill="url(#bloom_main)"/>
+</g>
+<path d="M52 70H138C155 70 168 83 168 100V156C168 173 155 186 138 186H92L58 212C53 216 47 213 49 207L56 186H52C35 186 22 173 22 156V100C22 83 35 70 52 70Z" stroke="white" stroke-opacity="0.5" stroke-width="2"/>
+<g filter="url(#shadow_dots)">
+<circle cx="64" cy="128" r="11" fill="white"/>
+<circle cx="95" cy="128" r="11" fill="white"/>
+<circle cx="126" cy="128" r="11" fill="white"/>
+</g>
+</svg>
