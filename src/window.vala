@@ -261,6 +261,13 @@ namespace Singularity.Apps.Messages {
             var new_conv = new SimpleAction ("new-conversation", null);
             new_conv.activate.connect (() => new_conversation ());
             add_action (new_conv);
+            var new_group = new SimpleAction ("new-group", null);
+            new_group.activate.connect (() => {
+                var d = new NewGroupDialog (app, this, engine);
+                d.started.connect ((ch, id) => open_by_id (ch.id, id));
+                d.open_dialog ();
+            });
+            add_action (new_group);
             var refresh = new SimpleAction ("refresh", null);
             refresh.activate.connect (() => engine.refresh_all ());
             add_action (refresh);

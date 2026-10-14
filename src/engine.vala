@@ -46,6 +46,7 @@ namespace Singularity.Apps.Messages {
         public signal void messages_changed (string channel, string conversation);
         public signal void problem (string channel, string message);
         public signal void arrived (Channel channel, Conversation conversation, Message message);
+        public signal void received (Channel channel, string conversation, Message message);
 
         public Engine (Store store) {
             Object (store: store);
@@ -330,6 +331,9 @@ namespace Singularity.Apps.Messages {
             var c = update_preview (ch, conversation);
             mark_dirty (ch.id, conversation);
             messages_changed (ch.id, conversation);
+            foreach (var m in fresh) {
+                if (!m.outgoing && !m.system && m.time >= started - 120) received (ch, conversation, m);
+            }
             bool focused = focus_visible && focus_channel == ch.id && focus_conversation == conversation;
             if (focused && c != null && (c.unread > 0 || fresh.size > 0)) mark_read.begin (ch, conversation, true);
             if (!notify || c == null) return;

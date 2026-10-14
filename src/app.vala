@@ -132,6 +132,8 @@ namespace Singularity.Apps.Messages {
             engine.add_provider (new TeamsProvider ());
             engine.add_provider (new SmsProvider ());
             engine.add_provider (new NearbyPeersProvider ());
+            engine.add_provider (new SocketProvider ());
+            engine.add_provider (new GroupsProvider (engine));
             plugins = new Singularity.AppPluginHost ("dev.sinty.messages", "messages", Singularity.AppPluginHost.desktop_settings ());
             plugins.add_extension_type (typeof (Provider));
             plugins.extension_added.connect ((info, ext) => {
@@ -165,6 +167,7 @@ namespace Singularity.Apps.Messages {
             var file = new GLib.Menu ();
             var f1 = new GLib.Menu ();
             f1.append (_("New Conversation"), "win.new-conversation");
+            f1.append (_("New Group"), "win.new-group");
             f1.append (_("Send a File…"), "win.attach");
             file.append_section (null, f1);
             var f2 = new GLib.Menu ();

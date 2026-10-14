@@ -27,6 +27,8 @@ namespace Singularity.Apps.Messages {
     public class NearbyPeersChannel : Channel {
         private const int KEEP = 1000;
 
+        public signal void group_message (string person, string group, string title, string author, string text, string message_id);
+
         private string path;
         private Gee.HashMap<string, Conversation> convs = new Gee.HashMap<string, Conversation> ();
         private Gee.HashMap<string, Gee.ArrayList<Message>> logs = new Gee.HashMap<string, Gee.ArrayList<Message>> ();
@@ -122,6 +124,12 @@ namespace Singularity.Apps.Messages {
         public void receive (string person, string name, string payload) {
             var o = Singularity.Collab.Shared.decode (payload);
             if (o == null) return;
+            string group = Rest.str (o, "group");
+            if (group != "") {
+                string author = Rest.str (o, "author", name != "" ? name : name_of (person));
+                group_message (person, group, Rest.str (o, "group_title"), author, Rest.str (o, "text"), Rest.str (o, "id", Uuid.string_random ()));
+                return;
+            }
             var c = conversation_for (person, name);
             var m = new Message ();
             m.id = Rest.str (o, "id", Uuid.string_random ());
@@ -185,6 +193,21 @@ namespace Singularity.Apps.Messages {
             yield Singularity.Collab.Client.get_default ().send (conversation, "Message", "", Singularity.Collab.Shared.encode (o), text);
             append (c, m);
             return m;
+        }
+
+        public async void send_group (string person, string group, string title, string author, string text, string message_id) throws Error {
+            var o = new Json.Object ();
+            o.set_string_member ("id", message_id);
+            o.set_string_member ("text", text);
+            o.set_string_member ("group", group);
+            o.set_string_member ("group_title", title);
+            o.set_string_member ("author", author);
+            yield Singularity.Collab.Client.get_default ().send (person, "Message", title, Singularity.Collab.Shared.encode (o), "%s: %s".printf (author, text));
+        }
+
+        public string title_of (string person) {
+            var c = convs[person];
+            return c != null && c.title != "" ? c.title : name_of (person);
         }
 
         public override async void mark_read (string conversation, string message, Cancellable? cancel = null) throws Error {

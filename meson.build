@@ -32,6 +32,8 @@ core = files(
   'src/providers/teams.vala',
   'src/providers/sms.vala',
   'src/providers/nearby.vala',
+  'src/providers/socket.vala',
+  'src/providers/groups.vala',
 )
 
 deps = [gtk_dep, gee_dep, gio_dep, soup_dep, json_dep, peas_dep, libsingularity_dep]
@@ -42,6 +44,7 @@ executable('singularity-messages',
     'src/widgets.vala',
     'src/composer.vala',
     'src/new_conversation.vala',
+    'src/new_group.vala',
     'src/search.vala',
     'src/window.vala',
     'src/app.vala',
