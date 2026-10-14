@@ -221,7 +221,7 @@ namespace Singularity.Apps.Messages {
             composer = new Composer ();
             composer.send_text.connect ((text, reply) => {
                 if (open_channel == null) return;
-                stick_bottom = true;
+                scroll_to_end ();
                 engine.send.begin (open_channel, open_conversation, text, reply != null ? reply.id : null);
             });
             composer.edit_text.connect ((m, text) => {
@@ -453,8 +453,8 @@ namespace Singularity.Apps.Messages {
             composer.set_features (ch.features, c != null && c.read_only);
             chat_stack.visible_child_name = "chat";
             update_head ();
-            stick_bottom = true;
             rebuild_thread ();
+            scroll_to_end ();
             engine.load.begin (ch, conversation);
             sync_focus ();
             app.notifier.withdraw (Engine.key_of (ch.id, conversation));
@@ -497,6 +497,17 @@ namespace Singularity.Apps.Messages {
                 return;
             }
             engine.focus (open_channel.id, open_conversation, is_active && visible);
+        }
+
+        private void scroll_to_end () {
+            stick_bottom = true;
+            int frames = 0;
+            thread_scroll.add_tick_callback ((widget, clock) => {
+                var adj = thread_scroll.vadjustment;
+                adj.value = adj.upper - adj.page_size;
+                stick_bottom = true;
+                return ++frames < 12 ? Source.CONTINUE : Source.REMOVE;
+            });
         }
 
         private void rebuild_thread () {
