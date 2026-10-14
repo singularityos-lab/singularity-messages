@@ -421,7 +421,7 @@ namespace Singularity.Apps.Messages {
 .messages-composer-context { padding: 2px 4px 8px 4px; font-size: 0.9em; }
 .messages-entry { background: alpha(currentColor, 0.06); border-radius: 18px; padding-right: 4px; }
 .messages-entry-view, .messages-entry-view text { background: transparent; }
-.messages-entry scrolledwindow, .messages-entry textview { outline: none; box-shadow: none; }
+.messages-entry scrolledwindow, .messages-entry scrolledwindow:focus-within, .messages-entry textview, .messages-entry textview:focus, .messages-entry textview:focus-visible, .messages-entry textview > text, .messages-entry textview > text:focus, .messages-entry textview > text:focus-visible { outline: none; outline-width: 0; box-shadow: none; border: none; }
 .messages-entry:focus-within { box-shadow: inset 0 0 0 2px alpha(@accent_bg_color, 0.55); }
 """;
     }

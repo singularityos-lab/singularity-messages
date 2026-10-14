@@ -66,6 +66,7 @@ namespace Singularity.Apps.Messages {
             view.right_margin = 10;
             view.add_css_class ("messages-entry-view");
             view.update_property (AccessibleProperty.LABEL, _("Message"), -1);
+            Singularity.Text.SpellIntegration.attach (view);
             scroll.child = view;
             frame.append (scroll);
 

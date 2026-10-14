@@ -75,7 +75,10 @@ namespace Singularity.Apps.Messages {
                 update_counts ();
             });
             engine.messages_changed.connect ((ch, conv) => {
-                if (open_channel != null && open_channel.id == ch && open_conversation == conv) rebuild_thread ();
+                if (open_channel == null || open_channel.id != ch || open_conversation != conv) return;
+                bool follow = stick_bottom;
+                rebuild_thread ();
+                if (follow) scroll_to_end ();
             });
             engine.problem.connect ((ch, msg) => {
                 if (open_channel != null && open_channel.id == ch) show_toast (msg);
