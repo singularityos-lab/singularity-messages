@@ -199,7 +199,7 @@ namespace Singularity.Apps.Messages {
         private void install_actions () {
             var quit_action = new SimpleAction ("quit", null);
             quit_action.activate.connect (() => {
-                foreach (var w in get_windows ()) w.close ();
+                foreach (var w in get_windows ().copy ()) w.close ();
                 quit ();
             });
             add_action (quit_action);
