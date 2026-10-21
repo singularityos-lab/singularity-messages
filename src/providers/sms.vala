@@ -9,6 +9,7 @@ namespace Singularity.Apps.Messages {
 
         private Gee.HashMap<string, SmsChannel> known = new Gee.HashMap<string, SmsChannel> ();
         private bool wired = false;
+        private bool listed = false;
 
         public async Gee.List<Channel> discover () throws Error {
             var client = NearbyClient.get_default ();
@@ -20,7 +21,10 @@ namespace Singularity.Apps.Messages {
                     if (ch != null) ch.on_changed ();
                 });
             }
-            if (client.devices.size == 0) yield client.refresh ();
+            if (client.devices.size == 0 && !listed) {
+                listed = true;
+                yield client.refresh ();
+            }
             var list = new Gee.ArrayList<Channel> ();
             foreach (var d in client.devices) {
                 if (!d.paired || !d.has_plugin ("sms") || (d.device_type != "phone" && d.device_type != "tablet")) continue;
