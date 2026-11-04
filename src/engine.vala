@@ -164,6 +164,24 @@ namespace Singularity.Apps.Messages {
             foreach (var ch in channels.values) refresh.begin (ch);
         }
 
+        public static bool can_delete (Channel ch) {
+            return ch is TeamsChannel || ch is TalkChannel;
+        }
+
+        public async void delete_conversation (Channel ch, string conversation) {
+            try {
+                var teams = ch as TeamsChannel;
+                if (teams != null) yield teams.hide_chat (conversation);
+                var talk = ch as TalkChannel;
+                if (talk != null) yield talk.leave (conversation);
+                var map = convs[ch.id];
+                if (map != null && map.unset (conversation)) store.save_conversations (ch.id, map.values);
+                conversations_changed ();
+            } catch (Error e) {
+                problem (ch.id, _("Could not delete the chat: %s").printf (e.message));
+            }
+        }
+
         public async void refresh (Channel ch) {
             if (refreshing.contains (ch.id)) {
                 refresh_again.add (ch.id);

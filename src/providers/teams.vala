@@ -76,6 +76,8 @@ namespace Singularity.Apps.Messages {
                 var r = yield rest.ok ("GET", url, null, null, cancel);
                 foreach (var n in r.array_member ("value").get_elements ()) {
                     var o = n.get_object ();
+                    var hidden_view = Rest.obj (o, "viewpoint");
+                    if (hidden_view != null && hidden_view.has_member ("isHidden") && hidden_view.get_boolean_member ("isHidden")) continue;
                     var c = new Conversation ();
                     c.id = Rest.str (o, "id");
                     string type = Rest.str (o, "chatType");
@@ -243,6 +245,16 @@ namespace Singularity.Apps.Messages {
             body.set_array_member ("hostedContents", hosted);
             var r = yield rest.json ("POST", GRAPH + "chats/%s/messages".printf (esc (conversation)), body, cancel);
             return parse (r.object (), conversation);
+        }
+
+        public async void hide_chat (string conversation, Cancellable? cancel = null) throws Error {
+            yield ensure_self (cancel);
+            var user = new Json.Object ();
+            user.set_string_member ("id", self_id);
+            if (tenant != "") user.set_string_member ("tenantId", tenant);
+            var body = new Json.Object ();
+            body.set_object_member ("user", user);
+            yield rest.json ("POST", GRAPH + "chats/%s/hideForUser".printf (esc (conversation)), body, cancel);
         }
 
         public override async void edit (string conversation, string message, string text, Cancellable? cancel = null) throws Error {

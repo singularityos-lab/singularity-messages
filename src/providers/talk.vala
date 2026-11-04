@@ -301,6 +301,10 @@ namespace Singularity.Apps.Messages {
             return m;
         }
 
+        public async void leave (string conversation, Cancellable? cancel = null) throws Error {
+            yield rest.ok ("DELETE", api ("v4/room/%s/participants/self".printf (esc (conversation))), null, null, cancel);
+        }
+
         public string avatar_of (string user) {
             return user != "" ? "%s/index.php/avatar/%s/64".printf (server, esc (user)) : "";
         }

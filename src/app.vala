@@ -350,6 +350,42 @@ namespace Singularity.Apps.Messages {
             }
         }
 
+        private Gee.HashSet<string> pins = new Gee.HashSet<string> ();
+        private bool pins_loaded = false;
+
+        private string pins_path () {
+            return Path.build_filename (store.root, "pins.json");
+        }
+
+        public bool is_pinned (string key) {
+            if (!pins_loaded) {
+                pins_loaded = true;
+                try {
+                    var parser = new Json.Parser ();
+                    parser.load_from_file (pins_path ());
+                    foreach (var n in parser.get_root ().get_array ().get_elements ()) pins.add (n.get_string ());
+                } catch (Error e) {
+                }
+            }
+            return pins.contains (key);
+        }
+
+        public void set_pinned (string key, bool pinned) {
+            is_pinned (key);
+            if (pinned) pins.add (key);
+            else pins.remove (key);
+            var arr = new Json.Array ();
+            foreach (var k in pins) arr.add_string_element (k);
+            var node = new Json.Node (Json.NodeType.ARRAY);
+            node.set_array (arr);
+            var gen = new Json.Generator ();
+            gen.set_root (node);
+            try {
+                gen.to_file (pins_path ());
+            } catch (Error e) {
+            }
+        }
+
         private string drafts_path () {
             return Path.build_filename (store.root, "drafts.json");
         }

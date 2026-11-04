@@ -427,6 +427,11 @@ namespace Singularity.Apps.Messages {
                     }
                 }
             }
+            var pinned = new Gee.ArrayList<Entry> ();
+            var rest = new Gee.ArrayList<Entry> ();
+            foreach (var e in entries) (app.is_pinned (e.key) ? pinned : rest).add (e);
+            entries = pinned;
+            entries.add_all (rest);
             updating_selection = true;
             Widget? child;
             while ((child = list.get_first_child ()) != null) list.remove (child);
@@ -434,6 +439,7 @@ namespace Singularity.Apps.Messages {
             foreach (var e in entries) {
                 var row = new ConversationRow ();
                 row.bind (e, app.avatars.lookup (e.channel, e.conversation));
+                row.set_pinned (app.is_pinned (e.key));
                 list.append (row);
                 rows[e.key] = row;
                 if (open_channel != null && e.channel == open_channel && e.conversation.id == open_conversation) list.select_row (row);
@@ -596,13 +602,35 @@ namespace Singularity.Apps.Messages {
         private void conversation_menu (ConversationRow row) {
             var e = row.entry;
             var menu = new ContextMenu (row);
+            bool pinned = app.is_pinned (e.key);
+            menu.add_item (pinned ? _("Unpin") : _("Pin to Top"), "view-pin-symbolic", () => {
+                app.set_pinned (e.key, !pinned);
+                queue_rebuild ();
+            });
             if (e.conversation.unread > 0) menu.add_item (_("Mark as Read"), "mail-read-symbolic", () => engine.mark_read.begin (e.channel, e.conversation.id));
             menu.add_item (_("Open in New Window"), "window-new-symbolic", () => {
                 var w = new MessagesWindow (app);
                 w.present ();
                 w.open_entry (e.channel, e.conversation.id);
             });
+            if (Engine.can_delete (e.channel)) {
+                menu.add_item (_("Delete Chat"), "user-trash-symbolic", () => confirm_delete (e));
+            }
             menu.popup ();
+        }
+
+        private void confirm_delete (Entry e) {
+            string detail = (e.channel is TeamsChannel) ? _("The chat is hidden from your list. It comes back if someone writes in it again.") : _("You leave the conversation and it is removed from your list.");
+            var dialog = new ConfirmDialog (app, _("Delete “%s”?").printf (e.conversation.title), "user-trash-symbolic", detail, _("Delete"), ConfirmDialog.ActionStyle.DESTRUCTIVE);
+            dialog.transient_for = this;
+            dialog.modal = true;
+            dialog.response.connect ((r) => {
+                dialog.close ();
+                if (r != ConfirmDialog.Response.PRIMARY) return;
+                app.set_pinned (e.key, false);
+                engine.delete_conversation.begin (e.channel, e.conversation.id, () => queue_rebuild ());
+            });
+            dialog.present ();
         }
 
         private void pick_files () {

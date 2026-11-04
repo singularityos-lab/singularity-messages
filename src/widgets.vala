@@ -124,6 +124,7 @@ namespace Singularity.Apps.Messages {
         private Label preview;
         private Label count;
         private Image muted;
+        private Image pin;
 
         public ConversationRow () {
             add_css_class ("messages-conversation-row");
@@ -158,6 +159,12 @@ namespace Singularity.Apps.Messages {
             muted.add_css_class ("dim-label");
             muted.tooltip_text = _("Muted");
             head.append (muted);
+            pin = new Image.from_icon_name ("view-pin-symbolic");
+            pin.pixel_size = 12;
+            pin.add_css_class ("dim-label");
+            pin.tooltip_text = _("Pinned");
+            pin.visible = false;
+            head.append (pin);
             when = new Label ("");
             when.add_css_class ("dim-label");
             when.add_css_class ("caption");
@@ -179,6 +186,10 @@ namespace Singularity.Apps.Messages {
             texts.append (foot);
             box.append (texts);
             child = box;
+        }
+
+        public void set_pinned (bool pinned) {
+            pin.visible = pinned;
         }
 
         public void bind (Entry e, string? image) {
