@@ -542,6 +542,8 @@ namespace Singularity.Apps.Messages {
                 var msg = m;
                 row.react.connect ((emoji) => engine.react.begin (open_channel, open_conversation, msg, emoji));
                 row.open_attachment.connect ((a) => open_attachment.begin (a));
+                row.preview.connect ((a, btn) => load_preview.begin (open_channel, a, btn));
+                row.request_previews ();
                 row.retry.connect (() => engine.retry (open_channel, open_conversation, msg));
                 thread.append (row);
             }
@@ -614,6 +616,44 @@ namespace Singularity.Apps.Messages {
             show_toast (ngettext ("Sending %d file…", "Sending %d files…", files.size).printf (files.size));
             yield engine.upload_all (ch, conv, files, caption ? text : "");
             foreach (var f in files) Composer.forget (f);
+        }
+
+        private HashTable<string, Gdk.Texture> previews = new HashTable<string, Gdk.Texture> (str_hash, str_equal);
+
+        private async void load_preview (Channel? ch, Attachment a, Button btn) {
+            if (ch == null) return;
+            string path = a.path;
+            if (path == "" || !FileUtils.test (path, FileTest.EXISTS)) {
+                if (a.url == "") return;
+                string dir = Path.build_filename (Environment.get_user_cache_dir (), "singularity", "messages", "files");
+                string key = Checksum.compute_for_string (ChecksumType.SHA256, ch.id + "\n" + a.url).substring (0, 24);
+                string name = a.name != "" ? a.name.replace ("/", "_") : "image";
+                path = Path.build_filename (dir, key + "-" + name);
+                if (!FileUtils.test (path, FileTest.EXISTS)) {
+                    try {
+                        var bytes = yield ch.download (a);
+                        if (bytes == null) return;
+                        DirUtils.create_with_parents (dir, 0700);
+                        FileUtils.set_data (path, bytes.get_data ());
+                    } catch (Error e) {
+                        return;
+                    }
+                }
+                a.path = path;
+            }
+            var texture = previews[path];
+            if (texture == null) {
+                try {
+                    uint8[] data;
+                    yield File.new_for_path (path).load_contents_async (null, out data, null);
+                    texture = Gdk.Texture.from_bytes (new Bytes.take ((owned) data));
+                } catch (Error e) {
+                    return;
+                }
+                if (previews.size () > 96) previews.remove_all ();
+                previews[path] = texture;
+            }
+            MessageRow.show_preview (btn, texture);
         }
 
         private async void open_attachment (Attachment a) {

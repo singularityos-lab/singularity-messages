@@ -226,6 +226,10 @@ namespace Singularity.Apps.Messages {
         public signal void react (string emoji);
         public signal void open_attachment (Attachment a);
         public signal void retry ();
+        public signal void preview (Attachment a, Button target);
+
+        private Gee.ArrayList<Attachment> preview_items = new Gee.ArrayList<Attachment> ();
+        private Gee.ArrayList<Button> preview_targets = new Gee.ArrayList<Button> ();
 
         public MessageRow (Message m, bool show_author, bool group, string? avatar_path) {
             message = m;
@@ -366,7 +370,40 @@ namespace Singularity.Apps.Messages {
             btn.child = box;
             btn.tooltip_text = _("Open %s").printf (name.label);
             btn.clicked.connect (() => open_attachment (a));
+            if (is_image (a)) {
+                preview_items.add (a);
+                preview_targets.add (btn);
+            }
             return btn;
+        }
+
+        public static bool is_image (Attachment a) {
+            if (a.mime.has_prefix ("image/")) return true;
+            bool uncertain;
+            string type = ContentType.guess (a.name, null, out uncertain);
+            return !uncertain && ContentType.is_mime_type (type, "image/*");
+        }
+
+        public void request_previews () {
+            for (int i = 0; i < preview_items.size; i++) preview (preview_items[i], preview_targets[i]);
+        }
+
+        public static void show_preview (Button btn, Gdk.Texture texture) {
+            int w = int.min (280, texture.width);
+            int h = (int) ((double) w * texture.height / int.max (1, texture.width));
+            if (h > 320) {
+                h = 320;
+                w = int.max (48, (int) ((double) h * texture.width / int.max (1, texture.height)));
+            }
+            var pic = new Picture.for_paintable (texture);
+            pic.content_fit = ContentFit.COVER;
+            pic.can_shrink = true;
+            pic.set_size_request (w, h);
+            btn.remove_css_class ("messages-attachment");
+            btn.add_css_class ("messages-attachment-image");
+            btn.halign = Align.START;
+            btn.overflow = Overflow.HIDDEN;
+            btn.child = pic;
         }
     }
 }

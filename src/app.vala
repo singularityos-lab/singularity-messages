@@ -414,6 +414,7 @@ namespace Singularity.Apps.Messages {
 .messages-meta { font-size: 0.75em; opacity: 0.7; }
 .messages-quote { border-left: 3px solid alpha(currentColor, 0.5); padding-left: 6px; font-size: 0.88em; opacity: 0.85; }
 .messages-attachment { padding: 6px 8px; border-radius: 10px; background: alpha(currentColor, 0.06); }
+.messages-attachment-image { padding: 0; border-radius: 12px; background: alpha(currentColor, 0.06); box-shadow: none; }
 .messages-reaction { padding: 0 8px; min-height: 22px; border-radius: 999px; font-size: 0.85em; }
 .messages-reaction:checked { background: alpha(@accent_bg_color, 0.25); color: inherit; }
 .messages-retry { font-size: 0.85em; color: @error_color; padding: 0 6px; min-height: 20px; }
