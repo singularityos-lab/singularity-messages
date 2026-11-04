@@ -144,7 +144,10 @@ namespace Singularity.Apps.Messages {
 
             banner = new Banner ();
             banner.visible = false;
-            banner.button_clicked.connect (() => app.open_accounts ());
+            banner.button_clicked.connect (() => {
+                if (consent_channel != null) request_consent.begin (consent_channel);
+                else app.open_accounts ();
+            });
 
             var list_pane = new Box (Orientation.VERTICAL, 0);
             list_pane.add_css_class ("messages-list-pane");
@@ -379,7 +382,14 @@ namespace Singularity.Apps.Messages {
             }
             app.notifier.badge (total);
             string? problem = null;
+            consent_channel = null;
             foreach (var ch in engine.get_channels ()) {
+                var teams = ch as TeamsChannel;
+                if (teams != null && teams.consent_needed) {
+                    consent_channel = teams;
+                    problem = _("%s: allow Messages to read and send your Teams chats").printf (ch.title);
+                    break;
+                }
                 if (ch.attention != "") {
                     problem = "%s: %s".printf (ch.title, ch.attention.has_prefix ("!") ? ch.attention.substring (1) : ch.attention);
                     break;
@@ -388,7 +398,30 @@ namespace Singularity.Apps.Messages {
             banner.visible = problem != null;
             if (problem != null) {
                 banner.title = problem;
-                banner.button_label = _("Settings");
+                banner.button_label = consent_channel != null ? _("Allow Teams Chats") : _("Settings");
+            }
+        }
+
+        private TeamsChannel? consent_channel = null;
+
+        private async void request_consent (TeamsChannel ch) {
+            var manager = Singularity.Accounts.Manager.get_default ();
+            var settings = new HashTable<string, Variant> (str_hash, str_equal);
+            settings["account"] = new Variant.string (ch.account_id);
+            settings["capabilities"] = new Variant.string ("chat");
+            try {
+                string url;
+                string flow = yield manager.begin_sign_in ("microsoft", settings, out url);
+                ulong handler = 0;
+                handler = manager.sign_in_finished.connect ((id, account, err) => {
+                    if (id != flow) return;
+                    manager.disconnect (handler);
+                    if (err != "") show_toast (err);
+                    else engine.refresh.begin (ch);
+                });
+                yield manager.open_sign_in_window (flow, url, "Microsoft", "singularity-account-microsoft-symbolic");
+            } catch (Error e) {
+                show_toast (e.message);
             }
         }
 

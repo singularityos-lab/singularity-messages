@@ -25,6 +25,8 @@ namespace Singularity.Apps.Messages {
         private string tenant = "";
         private Gee.HashMap<string, int64?> times = new Gee.HashMap<string, int64?> ();
 
+        public bool consent_needed { get; private set; default = false; }
+
         public TeamsChannel (Account account) {
             Object (id: "teams:" + account.id, provider_id: "teams");
             this.account = account;
@@ -68,6 +70,17 @@ namespace Singularity.Apps.Messages {
         }
 
         public override async Gee.List<Conversation> conversations (Cancellable? cancel = null) throws Error {
+            try {
+                var list = yield list_chats (cancel);
+                consent_needed = false;
+                return list;
+            } catch (MessagingError.AUTH e) {
+                consent_needed = true;
+                throw new MessagingError.AUTH (_("Teams chats need your permission"));
+            }
+        }
+
+        private async Gee.List<Conversation> list_chats (Cancellable? cancel) throws Error {
             yield ensure_self (cancel);
             var list = new Gee.ArrayList<Conversation> ();
             string url = GRAPH + "me/chats?$expand=members,lastMessagePreview&$top=50&$orderby=lastMessagePreview/createdDateTime%20desc";
