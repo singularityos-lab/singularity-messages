@@ -570,6 +570,24 @@ namespace Singularity.Apps.Messages {
             }
         }
 
+        public async void upload_all (Channel ch, string conversation, Gee.List<File> files, string caption) {
+            var teams = ch as TeamsChannel;
+            if (teams == null) {
+                for (int i = 0; i < files.size; i++) yield upload (ch, conversation, files[i], i == files.size - 1 ? caption : "");
+                return;
+            }
+            try {
+                var m = yield teams.send_images (conversation, files, caption);
+                var batch = new Gee.ArrayList<Message> ();
+                if (m.id == "") m.id = "local-" + Uuid.string_random ();
+                batch.add (m);
+                merge (ch, conversation, batch, false);
+                if (ch.realtime != Realtime.PUSH) yield fetch_new (ch, conversation, false);
+            } catch (Error e) {
+                problem (ch.id, _("Could not send the images: %s").printf (e.message));
+            }
+        }
+
         public async void edit (Channel ch, string conversation, Message m, string text) {
             string before = m.text;
             m.text = text;

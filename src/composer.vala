@@ -10,11 +10,16 @@ namespace Singularity.Apps.Messages {
         private MenuButton emoji_btn;
         private Box context_bar;
         private Label context_label;
+        private ScrolledWindow tray_scroll;
+        private Box tray;
+        private Gee.ArrayList<File> pending = new Gee.ArrayList<File> ();
+        private bool attachments = true;
         private string mode = "";
         private Message? target = null;
 
         public signal void send_text (string text, Message? reply_to);
         public signal void edit_text (Message message, string text);
+        public signal void send_files (Gee.List<File> files, string text, Message? reply_to);
         public signal void attach ();
         public signal void edit_last ();
 
@@ -39,6 +44,15 @@ namespace Singularity.Apps.Messages {
             cancel.clicked.connect (() => clear_context ());
             context_bar.append (cancel);
             append (context_bar);
+
+            tray = new Box (Orientation.HORIZONTAL, 8);
+            tray.add_css_class ("messages-composer-tray");
+            tray_scroll = new ScrolledWindow ();
+            tray_scroll.vscrollbar_policy = PolicyType.NEVER;
+            tray_scroll.propagate_natural_height = true;
+            tray_scroll.child = tray;
+            tray_scroll.visible = false;
+            append (tray_scroll);
 
             var row = new Box (Orientation.HORIZONTAL, 6);
             row.add_css_class ("messages-composer-row");
@@ -94,7 +108,10 @@ namespace Singularity.Apps.Messages {
             row.append (send_btn);
             append (row);
 
-            view.buffer.changed.connect (() => send_btn.sensitive = text ().strip () != "");
+            view.buffer.changed.connect (() => update_send ());
+            view.paste_clipboard.connect (() => {
+                if (attachments && paste_files (view.get_clipboard ())) Signal.stop_emission_by_name (view, "paste-clipboard");
+            });
             var keys = new EventControllerKey ();
             keys.key_pressed.connect ((val, code, state) => {
                 bool shift = (state & Gdk.ModifierType.SHIFT_MASK) != 0;
@@ -116,7 +133,9 @@ namespace Singularity.Apps.Messages {
         }
 
         public void set_features (Features f, bool read_only) {
-            attach_btn.visible = (f & Features.ATTACHMENTS) != 0;
+            attachments = (f & Features.ATTACHMENTS) != 0;
+            attach_btn.visible = attachments;
+            if (!attachments) clear_files ();
             sensitive = !read_only;
             view.update_property (AccessibleProperty.PLACEHOLDER, read_only ? _("Only some people can write here") : _("Message"), -1);
         }
@@ -159,8 +178,138 @@ namespace Singularity.Apps.Messages {
             context_bar.visible = false;
         }
 
+        public void add_file (File file) {
+            if (!attachments) return;
+            foreach (var f in pending) if (f.equal (file)) return;
+            pending.add (file);
+            var chip = new Overlay ();
+            chip.add_css_class ("messages-composer-chip");
+            chip.set_size_request (72, 72);
+            chip.valign = Align.START;
+            chip.overflow = Overflow.HIDDEN;
+            chip.tooltip_text = file.get_basename ();
+            string? type = null;
+            try {
+                type = file.query_info (FileAttribute.STANDARD_CONTENT_TYPE, FileQueryInfoFlags.NONE).get_content_type ();
+            } catch (Error e) {
+            }
+            if (type != null && ContentType.is_mime_type (type, "image/*")) {
+                var pic = new Picture.for_file (file);
+                pic.content_fit = ContentFit.COVER;
+                pic.set_size_request (72, 72);
+                chip.child = pic;
+            } else {
+                var box = new Box (Orientation.VERTICAL, 4);
+                box.set_size_request (72, 72);
+                box.valign = Align.CENTER;
+                var icon = new Image.from_gicon (type != null ? ContentType.get_icon (type) : new ThemedIcon ("text-x-generic"));
+                icon.pixel_size = 32;
+                box.append (icon);
+                var name = new Label (file.get_basename ());
+                name.ellipsize = Pango.EllipsizeMode.MIDDLE;
+                name.max_width_chars = 8;
+                name.add_css_class ("caption");
+                box.append (name);
+                chip.child = box;
+            }
+            var remove = new Button.from_icon_name ("window-close-symbolic");
+            remove.add_css_class ("circular");
+            remove.add_css_class ("messages-composer-remove");
+            remove.halign = Align.END;
+            remove.valign = Align.START;
+            remove.tooltip_text = _("Remove");
+            remove.clicked.connect (() => {
+                pending.remove (file);
+                tray.remove (chip);
+                forget (file);
+                update_tray ();
+            });
+            chip.add_overlay (remove);
+            tray.append (chip);
+            update_tray ();
+            focus_entry ();
+        }
+
+        public bool has_files () {
+            return pending.size > 0;
+        }
+
+        public void clear_files () {
+            foreach (var f in pending) forget (f);
+            pending.clear ();
+            Widget? w;
+            while ((w = tray.get_first_child ()) != null) tray.remove (w);
+            update_tray ();
+        }
+
+        private void update_tray () {
+            tray_scroll.visible = pending.size > 0;
+            update_send ();
+        }
+
+        private void update_send () {
+            send_btn.sensitive = text ().strip () != "" || (pending.size > 0 && mode != "edit");
+        }
+
+        private static string paste_dir () {
+            return Path.build_filename (Environment.get_user_cache_dir (), "singularity-messages", "paste");
+        }
+
+        public static void forget (File file) {
+            string? path = file.get_path ();
+            if (path == null || !path.has_prefix (paste_dir () + "/")) return;
+            try {
+                file.delete ();
+            } catch (Error e) {
+            }
+        }
+
+        private bool paste_files (Gdk.Clipboard clipboard) {
+            var formats = clipboard.formats;
+            if (formats.contain_gtype (typeof (Gdk.FileList))) {
+                clipboard.read_value_async.begin (typeof (Gdk.FileList), Priority.DEFAULT, null, (o, res) => {
+                    try {
+                        var list = (Gdk.FileList) clipboard.read_value_async.end (res).get_boxed ();
+                        foreach (var f in list.get_files ()) add_file (f);
+                    } catch (Error e) {
+                    }
+                });
+                return true;
+            }
+            if (!formats.contain_gtype (typeof (Gdk.Texture))) return false;
+            clipboard.read_texture_async.begin (null, (o, res) => {
+                try {
+                    var texture = clipboard.read_texture_async.end (res);
+                    if (texture == null) return;
+                    DirUtils.create_with_parents (paste_dir (), 0700);
+                    var stamp = new DateTime.now_local ().format ("%Y%m%d-%H%M%S");
+                    string path = Path.build_filename (paste_dir (), "%s-%s.png".printf (_("Image"), stamp));
+                    for (int i = 2; FileUtils.test (path, FileTest.EXISTS); i++) {
+                        path = Path.build_filename (paste_dir (), "%s-%s-%d.png".printf (_("Image"), stamp, i));
+                    }
+                    if (texture.save_to_png (path)) add_file (File.new_for_path (path));
+                } catch (Error e) {
+                }
+            });
+            return true;
+        }
+
         private void submit () {
             string t = text ().strip ();
+            if (mode != "edit" && pending.size > 0) {
+                var files = new Gee.ArrayList<File> ();
+                files.add_all (pending);
+                pending.clear ();
+                Widget? w;
+                while ((w = tray.get_first_child ()) != null) tray.remove (w);
+                update_tray ();
+                send_files (files, t, mode == "reply" ? target : null);
+                set_text ("");
+                mode = "";
+                target = null;
+                context_bar.visible = false;
+                return;
+            }
             if (t == "") return;
             if (mode == "edit" && target != null) edit_text (target, t);
             else send_text (t, mode == "reply" ? target : null);

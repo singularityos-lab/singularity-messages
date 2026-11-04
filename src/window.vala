@@ -227,6 +227,11 @@ namespace Singularity.Apps.Messages {
                 scroll_to_end ();
                 engine.send.begin (open_channel, open_conversation, text, reply != null ? reply.id : null);
             });
+            composer.send_files.connect ((files, text, reply) => {
+                if (open_channel == null) return;
+                scroll_to_end ();
+                send_files.begin (open_channel, open_conversation, files, text, reply != null ? reply.id : null);
+            });
             composer.edit_text.connect ((m, text) => {
                 if (open_channel != null) engine.edit.begin (open_channel, open_conversation, m, text);
             });
@@ -247,7 +252,7 @@ namespace Singularity.Apps.Messages {
             drop.drop.connect ((val, x, y) => {
                 var files = (Gdk.FileList) val.get_boxed ();
                 if (open_channel == null || !open_channel.supports (Features.ATTACHMENTS)) return false;
-                foreach (var f in files.get_files ()) engine.upload.begin (open_channel, open_conversation, f, "");
+                foreach (var f in files.get_files ()) composer.add_file (f);
                 return true;
             });
 
@@ -451,6 +456,7 @@ namespace Singularity.Apps.Messages {
             open_channel = ch;
             open_conversation = conversation;
             composer.clear_context ();
+            composer.clear_files ();
             composer.set_text (app.drafts_take (Engine.key_of (ch.id, conversation)));
             var c = engine.find_conversation (ch.id, conversation);
             composer.set_features (ch.features, c != null && c.read_only);
@@ -591,21 +597,23 @@ namespace Singularity.Apps.Messages {
 
         private void pick_files () {
             if (open_channel == null || !open_channel.supports (Features.ATTACHMENTS)) return;
-            var ch = open_channel;
-            string conv = open_conversation;
             var dialog = new FileDialog ();
-            dialog.title = _("Send Files");
+            dialog.title = _("Attach Files");
             dialog.open_multiple.begin (this, null, (o, res) => {
                 try {
                     var files = dialog.open_multiple.end (res);
-                    for (uint i = 0; i < files.get_n_items (); i++) {
-                        var f = (File) files.get_item (i);
-                        show_toast (_("Sending %s…").printf (f.get_basename ()));
-                        engine.upload.begin (ch, conv, f, "");
-                    }
+                    for (uint i = 0; i < files.get_n_items (); i++) composer.add_file ((File) files.get_item (i));
                 } catch (Error e) {
                 }
             });
+        }
+
+        private async void send_files (Channel ch, string conv, Gee.List<File> files, string text, string? reply_to) {
+            bool caption = reply_to == null && ch.supports (Features.ATTACHMENTS);
+            if (text != "" && !caption) yield engine.send (ch, conv, text, reply_to);
+            show_toast (ngettext ("Sending %d file…", "Sending %d files…", files.size).printf (files.size));
+            yield engine.upload_all (ch, conv, files, caption ? text : "");
+            foreach (var f in files) Composer.forget (f);
         }
 
         private async void open_attachment (Attachment a) {

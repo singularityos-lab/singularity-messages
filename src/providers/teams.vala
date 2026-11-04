@@ -125,7 +125,24 @@ namespace Singularity.Apps.Messages {
             m.deleted = Rest.str (o, "deletedDateTime") != "";
             m.edited = Rest.str (o, "lastEditedDateTime") != "";
             var body = Rest.obj (o, "body");
-            if (body != null) m.text = Rest.str (body, "contentType") == "html" ? Rest.strip_html (Rest.str (body, "content")) : Rest.str (body, "content");
+            if (body != null && Rest.str (body, "contentType") == "html") {
+                string html = Rest.str (body, "content");
+                m.text = Rest.strip_html (html);
+                try {
+                    MatchInfo mi;
+                    var re = new Regex ("<img[^>]*src=\"([^\"]*/hostedContents/[^\"]*)\"", RegexCompileFlags.CASELESS);
+                    for (re.match (html, 0, out mi); mi.matches (); mi.next ()) {
+                        var a = new Attachment ();
+                        a.name = _("Image");
+                        a.url = mi.fetch (1).replace ("&amp;", "&");
+                        a.mime = "image/png";
+                        m.attachments.add (a);
+                    }
+                } catch (RegexError e) {
+                }
+            } else if (body != null) {
+                m.text = Rest.str (body, "content");
+            }
             if (m.system && m.text == "") m.text = _("Conversation updated");
             foreach (var n in Rest.arr (o, "attachments").get_elements ()) {
                 var at = n.get_object ();
@@ -182,6 +199,42 @@ namespace Singularity.Apps.Messages {
         public override async Message send (string conversation, string text, string? reply_to, Cancellable? cancel = null) throws Error {
             yield ensure_self (cancel);
             var r = yield rest.json ("POST", GRAPH + "chats/%s/messages".printf (esc (conversation)), text_body (text), cancel);
+            return parse (r.object (), conversation);
+        }
+
+        public override async Message upload (string conversation, File file, string caption, Cancellable? cancel = null) throws Error {
+            var files = new Gee.ArrayList<File> ();
+            files.add (file);
+            return yield send_images (conversation, files, caption, cancel);
+        }
+
+        public async Message send_images (string conversation, Gee.List<File> files, string text, Cancellable? cancel = null) throws Error {
+            yield ensure_self (cancel);
+            var html = new StringBuilder ();
+            var hosted = new Json.Array ();
+            int n = 0;
+            foreach (var file in files) {
+                var info = yield file.query_info_async (FileAttribute.STANDARD_CONTENT_TYPE, FileQueryInfoFlags.NONE, Priority.DEFAULT, cancel);
+                string type = ContentType.get_mime_type (info.get_content_type () ?? "") ?? "";
+                if (!type.has_prefix ("image/")) throw new MessagingError.NOT_SUPPORTED (_("Teams chats only accept images here: %s").printf (file.get_basename ()));
+                uint8[] data;
+                yield file.load_contents_async (cancel, out data, null);
+                n++;
+                var h = new Json.Object ();
+                h.set_string_member ("@microsoft.graph.temporaryId", n.to_string ());
+                h.set_string_member ("contentBytes", Base64.encode (data));
+                h.set_string_member ("contentType", type);
+                hosted.add_object_element (h);
+                html.append ("<p><img src=\"../hostedContents/%d/$value\"></p>".printf (n));
+            }
+            if (text.strip () != "") html.append ("<p>%s</p>".printf (Markup.escape_text (text.strip ()).replace ("\n", "<br>")));
+            var b = new Json.Object ();
+            b.set_string_member ("contentType", "html");
+            b.set_string_member ("content", html.str);
+            var body = new Json.Object ();
+            body.set_object_member ("body", b);
+            body.set_array_member ("hostedContents", hosted);
+            var r = yield rest.json ("POST", GRAPH + "chats/%s/messages".printf (esc (conversation)), body, cancel);
             return parse (r.object (), conversation);
         }
 

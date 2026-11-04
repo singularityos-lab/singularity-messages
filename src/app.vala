@@ -418,6 +418,12 @@ namespace Singularity.Apps.Messages {
 .messages-reaction:checked { background: alpha(@accent_bg_color, 0.25); color: inherit; }
 .messages-retry { font-size: 0.85em; color: @error_color; padding: 0 6px; min-height: 20px; }
 .messages-composer { border-top: 1px solid alpha(currentColor, 0.08); padding: 8px 12px 10px 12px; }
+.messages-composer-tray { padding: 2px 4px 8px 4px; }
+.messages-composer-chip { border-radius: 10px; background: alpha(currentColor, 0.06); }
+.messages-composer-chip picture { border-radius: 10px; }
+.messages-composer-remove { margin: 4px; min-width: 22px; min-height: 22px; padding: 0; background: rgba(0, 0, 0, 0.6); color: white; box-shadow: none; }
+.messages-composer-remove:hover { background: rgba(0, 0, 0, 0.8); }
+.messages-composer-remove image { color: white; }
 .messages-composer-context { padding: 2px 4px 8px 4px; font-size: 0.9em; }
 .messages-entry { background: alpha(currentColor, 0.06); border-radius: 18px; padding-right: 4px; }
 .messages-entry-view, .messages-entry-view text { background: transparent; }
