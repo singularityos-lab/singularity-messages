@@ -301,6 +301,10 @@ namespace Singularity.Apps.Messages {
             return m;
         }
 
+        public string avatar_of (string user) {
+            return user != "" ? "%s/index.php/avatar/%s/64".printf (server, esc (user)) : "";
+        }
+
         public override async Bytes? download (Attachment attachment, Cancellable? cancel = null) throws Error {
             if (attachment.url == "") return null;
             var r = yield rest.http.send ("GET", attachment.url, null, null, null, cancel);

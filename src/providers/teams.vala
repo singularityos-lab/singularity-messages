@@ -59,6 +59,10 @@ namespace Singularity.Apps.Messages {
             }
         }
 
+        public string photo_url (string user) {
+            return user != "" ? GRAPH + "users/%s/photos/96x96/$value".printf (esc (user)) : "";
+        }
+
         private static string esc (string s) {
             return Uri.escape_string (s, null, false);
         }
@@ -82,7 +86,10 @@ namespace Singularity.Apps.Messages {
                         if (Rest.str (mo, "userId") == self_id) continue;
                         string dn = Rest.str (mo, "displayName");
                         if (dn != "") others += dn;
-                        if (c.kind == ConversationKind.DIRECT) c.peer = Rest.str (mo, "email", Rest.str (mo, "userId"));
+                        if (c.kind == ConversationKind.DIRECT) {
+                            c.peer = Rest.str (mo, "email", Rest.str (mo, "userId"));
+                            c.avatar_url = photo_url (Rest.str (mo, "userId"));
+                        }
                     }
                     c.title = Rest.str (o, "topic");
                     if (c.title == "") c.title = others.length > 0 ? string.joinv (", ", others) : _("Chat");

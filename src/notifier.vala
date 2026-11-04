@@ -20,24 +20,40 @@ namespace Singularity.Apps.Messages {
             return Path.build_filename (dir, Store.safe (url) + ".img");
         }
 
+        public static string author_key (Channel ch) {
+            return "author\n" + ch.id;
+        }
+
+        public string? lookup_author (Channel ch, string author_id) {
+            string url = "";
+            var teams = ch as TeamsChannel;
+            if (teams != null) url = teams.photo_url (author_id);
+            var talk = ch as TalkChannel;
+            if (talk != null) url = talk.avatar_of (author_id);
+            return url != "" ? lookup_url (ch, url, author_key (ch)) : null;
+        }
+
         public string? lookup (Channel ch, Conversation c) {
             if (c.avatar_url == "") return null;
-            string path = path_for (c.avatar_url);
+            return lookup_url (ch, c.avatar_url, Engine.key_of (ch.id, c.id));
+        }
+
+        private string? lookup_url (Channel ch, string url, string key) {
+            string path = path_for (url);
             if (FileUtils.test (path, FileTest.EXISTS)) {
                 try {
                     var info = File.new_for_path (path).query_info (FileAttribute.TIME_MODIFIED, FileQueryInfoFlags.NONE);
                     var mod = info.get_modification_date_time ();
-                    if (mod != null && new DateTime.now_utc ().difference (mod) > MAX_AGE) fetch.begin (ch, c);
+                    if (mod != null && new DateTime.now_utc ().difference (mod) > MAX_AGE) fetch.begin (ch, url, key);
                 } catch (Error e) {
                 }
                 return path;
             }
-            fetch.begin (ch, c);
+            fetch.begin (ch, url, key);
             return null;
         }
 
-        private async void fetch (Channel ch, Conversation c) {
-            string url = c.avatar_url;
+        private async void fetch (Channel ch, string url, string key) {
             if (pending.contains (url) || missing.contains (url)) return;
             pending.add (url);
             try {
@@ -46,7 +62,7 @@ namespace Singularity.Apps.Messages {
                 var bytes = yield ch.download (a);
                 if (bytes != null && bytes.get_size () > 0) {
                     FileUtils.set_data (path_for (url), bytes.get_data ());
-                    ready (Engine.key_of (ch.id, c.id));
+                    ready (key);
                 } else {
                     missing.add (url);
                 }

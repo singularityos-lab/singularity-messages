@@ -87,6 +87,14 @@ namespace Singularity.Apps.Messages {
                 var row = rows[key];
                 if (row != null) row.bind (row.entry, app.avatars.lookup (row.entry.channel, row.entry.conversation));
                 if (open_channel != null && Engine.key_of (open_channel.id, open_conversation) == key) update_head ();
+                if (open_channel != null && key == Avatars.author_key (open_channel) && !author_refresh) {
+                    author_refresh = true;
+                    Timeout.add (300, () => {
+                        author_refresh = false;
+                        rebuild_thread ();
+                        return Source.REMOVE;
+                    });
+                }
             });
             notify["is-active"].connect (() => sync_focus ());
             rebuild_sidebar ();
@@ -538,7 +546,7 @@ namespace Singularity.Apps.Messages {
                 bool show_author = m.system || m.author_id != last_author || m.time - last_time > 300;
                 last_author = m.system ? "" : m.author_id;
                 last_time = m.time;
-                var row = new MessageRow (m, show_author, group, null);
+                var row = new MessageRow (m, show_author, group, group && !m.outgoing ? app.avatars.lookup_author (open_channel, m.author_id) : null);
                 var msg = m;
                 row.react.connect ((emoji) => engine.react.begin (open_channel, open_conversation, msg, emoji));
                 row.open_attachment.connect ((a) => open_attachment.begin (a));
@@ -618,6 +626,7 @@ namespace Singularity.Apps.Messages {
             foreach (var f in files) Composer.forget (f);
         }
 
+        private bool author_refresh = false;
         private HashTable<string, Gdk.Texture> previews = new HashTable<string, Gdk.Texture> (str_hash, str_equal);
 
         private async void load_preview (Channel? ch, Attachment a, Button btn) {
