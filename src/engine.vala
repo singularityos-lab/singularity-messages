@@ -107,10 +107,15 @@ namespace Singularity.Apps.Messages {
                         warning ("messages: %s: %s", p.id, e.message);
                         continue;
                     }
+                    bool added = false;
                     foreach (var ch in found) {
                         seen.add (ch.id);
-                        if (!channels.has_key (ch.id)) adopt (ch);
+                        if (!channels.has_key (ch.id)) {
+                            adopt (ch);
+                            added = true;
+                        }
                     }
+                    if (added) channels_changed ();
                 }
                 foreach (var id in channels.keys.to_array ()) {
                     if (!seen.contains (id)) drop (id);
