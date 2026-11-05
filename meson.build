@@ -40,6 +40,7 @@ deps = [gtk_dep, gee_dep, gio_dep, soup_dep, json_dep, peas_dep, libsingularity_
 
 executable('singularity-messages',
   core + files(
+    'src/agent_intents.vala',
     'src/notifier.vala',
     'src/widgets.vala',
     'src/composer.vala',

@@ -113,6 +113,7 @@ namespace Singularity.Apps.Messages {
             avatars = new Avatars (store);
             notifier = new Notifier ();
             load_drafts ();
+            MessagesIntents.install (this);
             var provider = new CssProvider ();
             provider.load_from_string (CSS);
             StyleContext.add_provider_for_display (Gdk.Display.get_default (), provider, STYLE_PROVIDER_PRIORITY_USER + 1);
