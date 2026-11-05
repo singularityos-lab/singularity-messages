@@ -699,12 +699,16 @@ namespace Singularity.Apps.Messages {
                 string key = Checksum.compute_for_string (ChecksumType.SHA256, ch.id + "\n" + a.url).substring (0, 24);
                 string name = a.name != "" ? a.name.replace ("/", "_") : "image";
                 path = Path.build_filename (dir, key + "-" + name);
-                if (!FileUtils.test (path, FileTest.EXISTS)) {
+                string? cached = cached_with_extension (path);
+                if (cached != null) {
+                    path = cached;
+                } else {
                     try {
                         var bytes = yield ch.download (a);
                         if (bytes == null) return;
                         DirUtils.create_with_parents (dir, 0700);
                         FileUtils.set_data (path, bytes.get_data ());
+                        path = ensure_extension (path);
                     } catch (Error e) {
                         return;
                     }
@@ -729,6 +733,7 @@ namespace Singularity.Apps.Messages {
         private async void open_attachment (Attachment a) {
             if (open_channel == null) return;
             if (a.path != "" && FileUtils.test (a.path, FileTest.EXISTS)) {
+                a.path = ensure_extension (a.path);
                 launch (File.new_for_path (a.path));
                 return;
             }
@@ -748,11 +753,64 @@ namespace Singularity.Apps.Messages {
                 string name = a.name != "" ? a.name.replace ("/", "_") : "attachment";
                 string path = Path.build_filename (dir, name);
                 FileUtils.set_data (path, bytes.get_data ());
-                a.path = path;
-                launch (File.new_for_path (path));
+                a.path = ensure_extension (path);
+                launch (File.new_for_path (a.path));
             } catch (Error e) {
                 show_toast (e.message);
             }
+        }
+
+        private const string[] SNIFFED = { "png", "jpg", "gif", "webp", "heic", "avif", "bmp", "tiff", "mp4", "webm", "mov", "pdf" };
+
+        private static string? sniffed_extension (string path) {
+            uint8[] head = new uint8[4096];
+            size_t got = 0;
+            try {
+                var stream = File.new_for_path (path).read ();
+                stream.read_all (head, out got);
+                stream.close ();
+            } catch (Error e) {
+                return null;
+            }
+            head.length = (int) got;
+            bool uncertain;
+            string? mime = ContentType.get_mime_type (ContentType.guess (null, head, out uncertain));
+            switch (mime) {
+            case "image/png": return "png";
+            case "image/jpeg": return "jpg";
+            case "image/gif": return "gif";
+            case "image/webp": return "webp";
+            case "image/heif": return "heic";
+            case "image/heic": return "heic";
+            case "image/avif": return "avif";
+            case "image/bmp": return "bmp";
+            case "image/tiff": return "tiff";
+            case "video/mp4": return "mp4";
+            case "video/webm": return "webm";
+            case "video/quicktime": return "mov";
+            case "application/pdf": return "pdf";
+            default: return null;
+            }
+        }
+
+        private static string ensure_extension (string path) {
+            string base_name = Path.get_basename (path);
+            int dot = base_name.last_index_of_char ('.');
+            if (dot > 0 && base_name.length - dot <= 5) return path;
+            string? ext = sniffed_extension (path);
+            if (ext == null) return path;
+            string target = path + "." + ext;
+            if (FileUtils.rename (path, target) != 0) return path;
+            return target;
+        }
+
+        private static string? cached_with_extension (string path) {
+            if (FileUtils.test (path, FileTest.EXISTS)) return ensure_extension (path);
+            foreach (var ext in SNIFFED) {
+                string candidate = path + "." + ext;
+                if (FileUtils.test (candidate, FileTest.EXISTS)) return candidate;
+            }
+            return null;
         }
 
         private void launch (File f) {
