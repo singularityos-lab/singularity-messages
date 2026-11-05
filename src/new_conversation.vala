@@ -7,7 +7,7 @@ namespace Singularity.Apps.Messages {
     public class NewConversationDialog : AppDialog {
         private Engine engine;
         private Gee.ArrayList<Channel> choices = new Gee.ArrayList<Channel> ();
-        private DropDown service;
+        private ChoiceButton service;
         private Gtk.SearchEntry search;
         private ListBox results;
         private Label hint;
@@ -38,7 +38,7 @@ namespace Singularity.Apps.Messages {
 
             var group = new PreferencesGroup (_("Write To"));
             var service_row = new ActionRow (_("Service"), null, "chat-message-new-symbolic");
-            service = new DropDown (names, null);
+            service = new ChoiceButton (names, null);
             service.valign = Align.CENTER;
             service_row.add_suffix (service);
             group.add_row (service_row);
