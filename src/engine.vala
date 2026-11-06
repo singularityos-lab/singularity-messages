@@ -15,6 +15,43 @@ namespace Singularity.Apps.Messages {
         }
     }
 
+    public class GroupAvatar {
+        public const string PREFIX = "group:";
+        private const int SIZE = 96;
+
+        public static void compose (string[] paths, string target) throws Error {
+            int stride = SIZE * 4;
+            var out_px = new uint8[stride * SIZE];
+            int half = SIZE / 2;
+            for (int i = 0; i < 2; i++) {
+                var tex = Gdk.Texture.from_filename (paths[i]);
+                int tw = tex.get_width ();
+                int th = tex.get_height ();
+                var src = new uint8[tw * th * 4];
+                tex.download (src, tw * 4);
+                int x0 = i == 0 ? 0 : half + 1;
+                int w = i == 0 ? half - 1 : SIZE - half - 1;
+                double scale = (double) int.min (tw, th) / SIZE;
+                double cx = tw / 2.0 - (w * scale) / 2.0;
+                double cy = th / 2.0 - (SIZE * scale) / 2.0;
+                for (int y = 0; y < SIZE; y++) {
+                    int sy = ((int) (cy + (y + 0.5) * scale)).clamp (0, th - 1);
+                    for (int x = 0; x < w; x++) {
+                        int sx = ((int) (cx + (x + 0.5) * scale)).clamp (0, tw - 1);
+                        int so = (sy * tw + sx) * 4;
+                        int o = y * stride + (x0 + x) * 4;
+                        out_px[o] = src[so];
+                        out_px[o + 1] = src[so + 1];
+                        out_px[o + 2] = src[so + 2];
+                        out_px[o + 3] = src[so + 3];
+                    }
+                }
+            }
+            var result = new Gdk.MemoryTexture (SIZE, SIZE, Gdk.MemoryFormat.B8G8R8A8_PREMULTIPLIED, new Bytes (out_px), stride);
+            if (!result.save_to_png (target)) throw new IOError.FAILED ("could not write %s", target);
+        }
+    }
+
     public class Engine : Object {
         private const int PAGE = 50;
 
@@ -30,6 +67,7 @@ namespace Singularity.Apps.Messages {
         private Gee.HashSet<string> refresh_again = new Gee.HashSet<string> ();
         private Gee.HashSet<string> loaded_once = new Gee.HashSet<string> ();
         private Gee.HashSet<string> dirty = new Gee.HashSet<string> ();
+        private Gee.HashSet<string> dirty_channels = new Gee.HashSet<string> ();
         private string focus_channel = "";
         private string focus_conversation = "";
         private bool focus_visible = false;
@@ -209,10 +247,21 @@ namespace Singularity.Apps.Messages {
                 foreach (var e in map.entries) {
                     if (!next.has_key (e.key) && e.value.activity == 0) next[e.key] = e.value;
                 }
+                bool differs = next.size != map.size;
+                if (!differs) {
+                    foreach (var e in next.entries) {
+                        var old = map[e.key];
+                        if (old == null || signature (old.to_json ()) != signature (e.value.to_json ())) {
+                            differs = true;
+                            break;
+                        }
+                    }
+                }
+                bool recovered = ch.attention.has_prefix ("!");
                 convs[ch.id] = next;
-                store.save_conversations (ch.id, next.values);
                 if (ch.attention == "" || ch.attention.has_prefix ("!")) ch.attention = "";
-                conversations_changed ();
+                if (differs) store.save_conversations (ch.id, next.values);
+                if (differs || recovered || first) conversations_changed ();
                 foreach (var c in changed) yield fetch_new (ch, c.id, true);
                 if (focus_channel == ch.id && focus_conversation != "" && ch.realtime == Realtime.PUSH) yield fetch_new (ch, focus_conversation, true);
             } catch (Error e) {
@@ -317,8 +366,15 @@ namespace Singularity.Apps.Messages {
             return local.attachments.size == 0 && remote.attachments.size == 0 && local.text.strip () == remote.text.strip ();
         }
 
+        private static string signature (Json.Object o) {
+            var node = new Json.Node (Json.NodeType.OBJECT);
+            node.set_object (o);
+            return Json.to_string (node, false);
+        }
+
         public void merge (Channel ch, string conversation, Gee.List<Message> incoming, bool notify) {
             if (incoming.size == 0) return;
+            bool changed = false;
             var list = messages (ch.id, conversation);
             var index = new Gee.HashMap<string, int> ();
             for (int i = 0; i < list.size; i++) index[list[i].id] = i;
@@ -326,7 +382,9 @@ namespace Singularity.Apps.Messages {
             foreach (var m in incoming) {
                 m.conversation = conversation;
                 if (index.has_key (m.id)) {
-                    list[index[m.id]] = m;
+                    int at = index[m.id];
+                    if (!changed && signature (list[at].to_json ()) != signature (m.to_json ())) changed = true;
+                    list[at] = m;
                     continue;
                 }
                 if (m.outgoing) {
@@ -336,6 +394,7 @@ namespace Singularity.Apps.Messages {
                         if (echoes (p, m)) {
                             list[i] = m;
                             replaced = true;
+                            changed = true;
                             break;
                         }
                     }
@@ -344,7 +403,9 @@ namespace Singularity.Apps.Messages {
                 list.add (m);
                 index[m.id] = list.size - 1;
                 fresh.add (m);
+                changed = true;
             }
+            if (!changed) return;
             list.sort ((a, b) => {
                 bool pa = a.state != MessageState.SENT, pb = b.state != MessageState.SENT;
                 if (pa != pb) return pa ? 1 : -1;
@@ -384,6 +445,15 @@ namespace Singularity.Apps.Messages {
 
         private void mark_dirty (string channel, string conversation) {
             dirty.add (key_of (channel, conversation));
+            schedule_save ();
+        }
+
+        private void mark_conversations_dirty (string channel) {
+            dirty_channels.add (channel);
+            schedule_save ();
+        }
+
+        private void schedule_save () {
             if (save_timer != 0) return;
             save_timer = Timeout.add (500, () => {
                 save_timer = 0;
@@ -393,13 +463,22 @@ namespace Singularity.Apps.Messages {
         }
 
         public void flush () {
+            var touched = new Gee.HashSet<string> ();
+            touched.add_all (dirty_channels);
+            dirty_channels.clear ();
             foreach (string k in dirty) {
                 string[] parts = k.split ("\n", 2);
                 var list = cache[k];
-                if (list != null && parts.length == 2) store.save_messages (parts[0], parts[1], list);
+                if (list != null && parts.length == 2) {
+                    store.save_messages (parts[0], parts[1], list);
+                    touched.add (parts[0]);
+                }
             }
             dirty.clear ();
-            foreach (var e in convs.entries) store.save_conversations (e.key, e.value.values);
+            foreach (string id in touched) {
+                var map = convs[id];
+                if (map != null) store.save_conversations (id, map.values);
+            }
         }
 
         public void focus (string channel, string conversation, bool visible) {
@@ -485,7 +564,10 @@ namespace Singularity.Apps.Messages {
             bool had = c.unread > 0 || c.mentioned;
             c.unread = 0;
             c.mentioned = false;
-            if (had) conversations_changed ();
+            if (had) {
+                mark_conversations_dirty (ch.id);
+                conversations_changed ();
+            }
             if ((!had && !force) || !ch.supports (Features.READ_MARKERS) || last == "") return;
             try {
                 yield ch.mark_read (conversation, last);
@@ -665,6 +747,7 @@ namespace Singularity.Apps.Messages {
                     c.peer = peer;
                     c.activity = get_real_time () / 1000000;
                     convs[ch.id][id] = c;
+                    mark_conversations_dirty (ch.id);
                     conversations_changed ();
                 }
                 return id;

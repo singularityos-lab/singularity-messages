@@ -38,7 +38,39 @@ namespace Singularity.Apps.Messages {
             return lookup_url (ch, c.avatar_url, Engine.key_of (ch.id, c.id));
         }
 
+        private string? lookup_group (Channel ch, string url, string key) {
+            string[] paths = {};
+            int64 newest = 0;
+            foreach (string part in url.substring (GroupAvatar.PREFIX.length).split ("\n")) {
+                if (part == "") continue;
+                string? p = lookup_url (ch, part, key);
+                if (p == null) continue;
+                paths += p;
+                newest = int64.max (newest, modified (p));
+            }
+            if (paths.length == 0) return null;
+            if (paths.length == 1) return paths[0];
+            string path = path_for (url);
+            if (FileUtils.test (path, FileTest.EXISTS) && modified (path) >= newest) return path;
+            try {
+                GroupAvatar.compose (paths, path);
+                return path;
+            } catch (Error e) {
+                return paths[0];
+            }
+        }
+
+        private static int64 modified (string path) {
+            try {
+                var info = File.new_for_path (path).query_info (FileAttribute.TIME_MODIFIED, FileQueryInfoFlags.NONE);
+                return (int64) info.get_attribute_uint64 (FileAttribute.TIME_MODIFIED);
+            } catch (Error e) {
+                return 0;
+            }
+        }
+
         private string? lookup_url (Channel ch, string url, string key) {
+            if (url.has_prefix (GroupAvatar.PREFIX)) return lookup_group (ch, url, key);
             string path = path_for (url);
             if (FileUtils.test (path, FileTest.EXISTS)) {
                 try {

@@ -119,6 +119,78 @@ void test_merge_and_store () {
     engine.flush ();
     var reloaded = new Store ().load_messages ("fake:1", "c1");
     check (reloaded.size == 2 && reloaded[1].text == "ehi" && reloaded[0].edited, "store roundtrip");
+
+    int changes = 0;
+    engine.messages_changed.connect (() => changes++);
+    var same = new Gee.ArrayList<Message> ();
+    foreach (var m in msgs) {
+        var copy = new Message ();
+        copy.id = m.id;
+        copy.conversation = m.conversation;
+        copy.author_id = m.author_id;
+        copy.author_name = m.author_name;
+        copy.text = m.text;
+        copy.time = m.time;
+        copy.outgoing = m.outgoing;
+        copy.edited = m.edited;
+        same.add (copy);
+    }
+    engine.merge (p.channel, "c1", same, false);
+    check (changes == 0, "an unchanged poll does not report a change");
+    var edited = new Message ();
+    edited.id = same[1].id;
+    edited.conversation = same[1].conversation;
+    edited.author_id = same[1].author_id;
+    edited.author_name = same[1].author_name;
+    edited.text = "ehi!";
+    edited.time = same[1].time;
+    edited.outgoing = same[1].outgoing;
+    var batch = new Gee.ArrayList<Message> ();
+    batch.add (edited);
+    engine.merge (p.channel, "c1", batch, false);
+    check (changes == 1 && msgs[1].text == "ehi!", "a changed message is reported once");
+
+    int listed = 0;
+    engine.conversations_changed.connect (() => listed++);
+    engine.refresh.begin (p.channel);
+    spin (50);
+    check (listed == 0, "an unchanged conversation list does not report a change");
+}
+
+uint32 pixel_at (Gdk.Texture t, int x, int y) {
+    var px = new uint8[t.get_width () * t.get_height () * 4];
+    t.download (px, t.get_width () * 4);
+    int o = (y * t.get_width () + x) * 4;
+    return ((uint32) px[o + 2] << 16) | ((uint32) px[o + 1] << 8) | px[o];
+}
+
+Gdk.Texture solid (int w, int h, uint8 r, uint8 g, uint8 b) {
+    var px = new uint8[w * h * 4];
+    for (int i = 0; i < w * h; i++) {
+        px[i * 4] = b;
+        px[i * 4 + 1] = g;
+        px[i * 4 + 2] = r;
+        px[i * 4 + 3] = 255;
+    }
+    return new Gdk.MemoryTexture (w, h, Gdk.MemoryFormat.B8G8R8A8_PREMULTIPLIED, new Bytes (px), w * 4);
+}
+
+void test_group_avatar () {
+    string dir = temp_dir ();
+    string a = Path.build_filename (dir, "a.png");
+    string b = Path.build_filename (dir, "b.png");
+    string out_path = Path.build_filename (dir, "group.png");
+    try {
+        check (solid (120, 80, 255, 0, 0).save_to_png (a), "first fixture written");
+        check (solid (64, 64, 0, 0, 255).save_to_png (b), "second fixture written");
+        GroupAvatar.compose ({ a, b }, out_path);
+        var got = Gdk.Texture.from_filename (out_path);
+        check (got.get_width () == 96 && got.get_height () == 96, "group avatar is square");
+        check (pixel_at (got, 10, 48) == 0xff0000, "left half shows the first member");
+        check (pixel_at (got, 85, 48) == 0x0000ff, "right half shows the second member");
+    } catch (Error e) {
+        check (false, "group avatar: " + e.message);
+    }
 }
 
 void test_send_pending_and_retry () {
@@ -197,6 +269,7 @@ void test_notifications_only_for_new_incoming () {
 int main (string[] args) {
     Test.init (ref args);
     Test.add_func ("/messages/merge-store", test_merge_and_store);
+    Test.add_func ("/messages/group-avatar", test_group_avatar);
     Test.add_func ("/messages/send-retry", test_send_pending_and_retry);
     Test.add_func ("/messages/notify", test_notifications_only_for_new_incoming);
     return Test.run ();

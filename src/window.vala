@@ -29,6 +29,7 @@ namespace Singularity.Apps.Messages {
         private Gee.HashMap<string, ConversationRow> rows = new Gee.HashMap<string, ConversationRow> ();
         private string filter = "all";
         private string query = "";
+        private uint search_timer = 0;
         private Channel? open_channel = null;
         private string open_conversation = "";
         private bool stick_bottom = true;
@@ -52,7 +53,12 @@ namespace Singularity.Apps.Messages {
 
             search = add_bubble_search (_("Search Conversations"), (t) => {
                 query = t.strip ();
-                queue_rebuild ();
+                if (search_timer != 0) Source.remove (search_timer);
+                search_timer = Timeout.add (query == "" ? 0 : 150, () => {
+                    search_timer = 0;
+                    queue_rebuild ();
+                    return Source.REMOVE;
+                });
             });
             add_bubble_icon ("view-refresh-symbolic", _("Refresh (Ctrl+R)"), () => engine.refresh_all ());
 
@@ -91,7 +97,7 @@ namespace Singularity.Apps.Messages {
                     author_refresh = true;
                     Timeout.add (300, () => {
                         author_refresh = false;
-                        rebuild_thread ();
+                        refresh_author_images ();
                         return Source.REMOVE;
                     });
                 }
@@ -564,6 +570,15 @@ namespace Singularity.Apps.Messages {
                 stick_bottom = true;
                 return ++frames < 12 ? Source.CONTINUE : Source.REMOVE;
             });
+        }
+
+        private void refresh_author_images () {
+            if (open_channel == null) return;
+            for (var child = thread.get_first_child (); child != null; child = child.get_next_sibling ()) {
+                var row = child as MessageRow;
+                if (row == null || row.message.outgoing || row.message.system) continue;
+                row.set_author_image (app.avatars.lookup_author (open_channel, row.message.author_id));
+            }
         }
 
         private void rebuild_thread () {

@@ -96,16 +96,21 @@ namespace Singularity.Apps.Messages {
                     string type = Rest.str (o, "chatType");
                     c.kind = type == "oneOnOne" ? ConversationKind.DIRECT : ConversationKind.GROUP;
                     string[] others = {};
+                    string[] faces = {};
                     foreach (var mn in Rest.arr (o, "members").get_elements ()) {
                         var mo = mn.get_object ();
-                        if (Rest.str (mo, "userId") == self_id) continue;
+                        string uid = Rest.str (mo, "userId");
+                        if (uid == self_id) continue;
                         string dn = Rest.str (mo, "displayName");
                         if (dn != "") others += dn;
                         if (c.kind == ConversationKind.DIRECT) {
-                            c.peer = Rest.str (mo, "email", Rest.str (mo, "userId"));
-                            c.avatar_url = photo_url (Rest.str (mo, "userId"));
+                            c.peer = Rest.str (mo, "email", uid);
+                            c.avatar_url = photo_url (uid);
+                        } else if (uid != "" && faces.length < 2) {
+                            faces += photo_url (uid);
                         }
                     }
+                    if (c.kind == ConversationKind.GROUP && faces.length > 0) c.avatar_url = GroupAvatar.PREFIX + string.joinv ("\n", faces);
                     c.title = Rest.str (o, "topic");
                     if (c.title == "") c.title = others.length > 0 ? string.joinv (", ", others) : _("Chat");
                     c.activity = Rest.iso_time (Rest.str (o, "lastUpdatedDateTime"));

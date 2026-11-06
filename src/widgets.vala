@@ -38,6 +38,13 @@ namespace Singularity.Apps.Messages {
     public class ChatAvatar : Widget {
         private const string[] COLORS = { "#3584e4", "#2190a4", "#3a944a", "#c88800", "#ed5b00", "#e62d42", "#d56199", "#9141ac", "#6f8396", "#986a44" };
 
+        private class Cached {
+            public Gdk.Texture texture;
+            public uint64 stamp;
+        }
+
+        private static Gee.HashMap<string, Cached>? textures = null;
+
         private Gdk.Texture? texture;
         private string initials = "";
         private string seed = "";
@@ -53,15 +60,32 @@ namespace Singularity.Apps.Messages {
             seed = name;
             initials = initials_of (name);
             group_icon = group ? "system-users-symbolic" : "";
-            texture = null;
-            if (image != null) {
-                try {
-                    texture = Gdk.Texture.from_filename (image);
-                } catch (Error e) {
-                    texture = null;
-                }
-            }
+            texture = image != null ? load (image) : null;
             queue_draw ();
+        }
+
+        private static Gdk.Texture? load (string path) {
+            if (textures == null) textures = new Gee.HashMap<string, Cached> ();
+            uint64 stamp = 0;
+            try {
+                var info = File.new_for_path (path).query_info (FileAttribute.TIME_MODIFIED + "," + FileAttribute.STANDARD_SIZE, FileQueryInfoFlags.NONE);
+                stamp = info.get_attribute_uint64 (FileAttribute.TIME_MODIFIED) ^ (uint64) info.get_size ();
+            } catch (Error e) {
+                textures.unset (path);
+                return null;
+            }
+            var hit = textures[path];
+            if (hit != null && hit.stamp == stamp) return hit.texture;
+            try {
+                var c = new Cached ();
+                c.texture = Gdk.Texture.from_filename (path);
+                c.stamp = stamp;
+                textures[path] = c;
+                return c.texture;
+            } catch (Error e) {
+                textures.unset (path);
+                return null;
+            }
         }
 
         public override void measure (Orientation o, int for_size, out int minimum, out int natural, out int mb, out int nb) {
@@ -239,8 +263,14 @@ namespace Singularity.Apps.Messages {
         public signal void retry ();
         public signal void preview (Attachment a, Button target);
 
+        private ChatAvatar? author_avatar = null;
+        private bool author_shown = false;
         private Gee.ArrayList<Attachment> preview_items = new Gee.ArrayList<Attachment> ();
         private Gee.ArrayList<Button> preview_targets = new Gee.ArrayList<Button> ();
+
+        public void set_author_image (string? path) {
+            if (author_avatar != null && author_shown) author_avatar.set_person (message.author_name, path);
+        }
 
         public MessageRow (Message m, bool show_author, bool group, string? avatar_path) {
             message = m;
@@ -268,8 +298,10 @@ namespace Singularity.Apps.Messages {
             if (group && !m.outgoing) {
                 var av = new ChatAvatar (28);
                 av.valign = Align.END;
-                av.set_person (m.author_name, avatar_path);
+                av.set_person (m.author_name, show_author ? avatar_path : null);
                 av.opacity = show_author ? 1.0 : 0.0;
+                author_avatar = av;
+                author_shown = show_author;
                 line.append (av);
             }
             var column = new Box (Orientation.VERTICAL, 2);
