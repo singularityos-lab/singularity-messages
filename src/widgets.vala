@@ -41,6 +41,7 @@ namespace Singularity.Apps.Messages {
         private class Cached {
             public Gdk.Texture texture;
             public uint64 stamp;
+            public int64 checked;
         }
 
         private static Gee.HashMap<string, Cached>? textures = null;
@@ -60,32 +61,51 @@ namespace Singularity.Apps.Messages {
             seed = name;
             initials = initials_of (name);
             group_icon = group ? "system-users-symbolic" : "";
-            texture = image != null ? load (image) : null;
+            image_path = image;
+            texture = null;
+            if (image != null) {
+                if (textures == null) textures = new Gee.HashMap<string, Cached> ();
+                var hit = textures[image];
+                if (hit != null) texture = hit.texture;
+                if (hit == null || GLib.get_monotonic_time () - hit.checked > 5 * TimeSpan.SECOND) load.begin (image);
+            }
             queue_draw ();
         }
 
-        private static Gdk.Texture? load (string path) {
-            if (textures == null) textures = new Gee.HashMap<string, Cached> ();
-            uint64 stamp = 0;
-            try {
-                var info = File.new_for_path (path).query_info (FileAttribute.TIME_MODIFIED + "," + FileAttribute.STANDARD_SIZE, FileQueryInfoFlags.NONE);
-                stamp = info.get_attribute_uint64 (FileAttribute.TIME_MODIFIED) ^ (uint64) info.get_size ();
-            } catch (Error e) {
-                textures.unset (path);
-                return null;
-            }
+        private string? image_path = null;
+
+        private async void load (string path) {
             var hit = textures[path];
-            if (hit != null && hit.stamp == stamp) return hit.texture;
+            uint64 known = hit != null ? hit.stamp : 0;
+            Cached? fresh = null;
             try {
-                var c = new Cached ();
-                c.texture = Gdk.Texture.from_filename (path);
-                c.stamp = stamp;
-                textures[path] = c;
-                return c.texture;
+                fresh = yield Singularity.Async.run<Cached?> ((c) => {
+                    var info = File.new_for_path (path).query_info (FileAttribute.TIME_MODIFIED + "," + FileAttribute.STANDARD_SIZE, FileQueryInfoFlags.NONE, c);
+                    uint64 stamp = info.get_attribute_uint64 (FileAttribute.TIME_MODIFIED) ^ (uint64) info.get_size ();
+                    if (stamp == known) return null;
+                    var made = new Cached ();
+                    made.texture = Gdk.Texture.from_filename (path);
+                    made.stamp = stamp;
+                    return made;
+                }, Singularity.Async.Qos.USER, Singularity.Async.scope_of (this));
             } catch (Error e) {
+                if (e is IOError.CANCELLED) return;
                 textures.unset (path);
-                return null;
+                if (image_path == path) {
+                    texture = null;
+                    queue_draw ();
+                }
+                return;
             }
+            if (fresh == null) {
+                if (hit != null) hit.checked = GLib.get_monotonic_time ();
+                return;
+            }
+            fresh.checked = GLib.get_monotonic_time ();
+            textures[path] = fresh;
+            if (image_path != path) return;
+            texture = fresh.texture;
+            queue_draw ();
         }
 
         public override void measure (Orientation o, int for_size, out int minimum, out int natural, out int mb, out int nb) {

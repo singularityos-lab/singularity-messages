@@ -8,6 +8,9 @@ namespace Singularity.Apps.Messages {
         private string dir;
         private Gee.HashSet<string> pending = new Gee.HashSet<string> ();
         private Gee.HashSet<string> missing = new Gee.HashSet<string> ();
+        private Gee.HashSet<string> composing = new Gee.HashSet<string> ();
+        private Gee.HashMap<string, int64?> checked = new Gee.HashMap<string, int64?> ();
+        private const int64 RECHECK = 60 * TimeSpan.SECOND;
 
         public signal void ready (string key);
 
@@ -39,6 +42,9 @@ namespace Singularity.Apps.Messages {
         }
 
         private string? lookup_group (Channel ch, string url, string key) {
+            string group_path = path_for (url);
+            int64? fresh = checked[group_path];
+            if (fresh != null && GLib.get_monotonic_time () - fresh < RECHECK) return group_path;
             string[] paths = {};
             int64 newest = 0;
             foreach (string part in url.substring (GroupAvatar.PREFIX.length).split ("\n")) {
@@ -50,14 +56,29 @@ namespace Singularity.Apps.Messages {
             }
             if (paths.length == 0) return null;
             if (paths.length == 1) return paths[0];
-            string path = path_for (url);
-            if (FileUtils.test (path, FileTest.EXISTS) && modified (path) >= newest) return path;
-            try {
-                GroupAvatar.compose (paths, path);
+            string path = group_path;
+            if (FileUtils.test (path, FileTest.EXISTS) && modified (path) >= newest) {
+                checked[path] = GLib.get_monotonic_time ();
                 return path;
-            } catch (Error e) {
-                return paths[0];
             }
+            compose.begin (paths, path, key);
+            return paths[0];
+        }
+
+        private async void compose (string[] paths, string path, string key) {
+            if (composing.contains (path)) return;
+            composing.add (path);
+            string[] parts = paths;
+            try {
+                yield Singularity.Async.run<bool> ((c) => {
+                    GroupAvatar.compose (parts, path);
+                    return true;
+                }, Singularity.Async.Qos.UTILITY);
+                checked.unset (path);
+                ready (key);
+            } catch (Error e) {
+            }
+            composing.remove (path);
         }
 
         private static int64 modified (string path) {
@@ -72,7 +93,11 @@ namespace Singularity.Apps.Messages {
         private string? lookup_url (Channel ch, string url, string key) {
             if (url.has_prefix (GroupAvatar.PREFIX)) return lookup_group (ch, url, key);
             string path = path_for (url);
+            int64 now = GLib.get_monotonic_time ();
+            int64? seen = checked[path];
+            if (seen != null && now - seen < RECHECK) return path;
             if (FileUtils.test (path, FileTest.EXISTS)) {
+                checked[path] = now;
                 try {
                     var info = File.new_for_path (path).query_info (FileAttribute.TIME_MODIFIED, FileQueryInfoFlags.NONE);
                     var mod = info.get_modification_date_time ();
