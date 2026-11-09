@@ -35,7 +35,10 @@ class FakeChannel : Channel {
         return m;
     }
 
+    public string failing = "";
+
     public override async Gee.List<Conversation> conversations (Cancellable? cancel = null) throws Error {
+        if (failing != "") throw new MessagingError.NETWORK (failing);
         return convs;
     }
 
@@ -266,11 +269,39 @@ void test_notifications_only_for_new_incoming () {
     check (arrived == 1, "focused visible conversation does not notify");
 }
 
+void test_repeated_poll_error_reported_once () {
+    string dir = temp_dir ();
+    Environment.set_variable ("SINGULARITY_MESSAGES_DIR", dir, true);
+    var engine = new Engine (new Store ());
+    var p = new FakeProvider ();
+    engine.add_provider (p);
+    engine.discover.begin ();
+    spin (50);
+    int reports = 0;
+    engine.problem.connect (() => reports++);
+    p.channel.failing = "no registration";
+    for (int i = 0; i < 3; i++) {
+        engine.refresh.begin (p.channel);
+        spin (20);
+    }
+    check (reports == 1, "the same poll error is reported once");
+    check (p.channel.attention == "!no registration", "the channel keeps the error");
+    p.channel.failing = "";
+    engine.refresh.begin (p.channel);
+    spin (20);
+    check (p.channel.attention == "", "recovery clears the error");
+    p.channel.failing = "no registration";
+    engine.refresh.begin (p.channel);
+    spin (20);
+    check (reports == 2, "the error is reported again after a recovery");
+}
+
 int main (string[] args) {
     Test.init (ref args);
     Test.add_func ("/messages/merge-store", test_merge_and_store);
     Test.add_func ("/messages/group-avatar", test_group_avatar);
     Test.add_func ("/messages/send-retry", test_send_pending_and_retry);
     Test.add_func ("/messages/notify", test_notifications_only_for_new_incoming);
+    Test.add_func ("/messages/poll-error-once", test_repeated_poll_error_reported_once);
     return Test.run ();
 }

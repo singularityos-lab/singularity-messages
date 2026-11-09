@@ -68,6 +68,7 @@ namespace Singularity.Apps.Messages {
         private Gee.HashSet<string> loaded_once = new Gee.HashSet<string> ();
         private Gee.HashSet<string> dirty = new Gee.HashSet<string> ();
         private Gee.HashSet<string> dirty_channels = new Gee.HashSet<string> ();
+        private Gee.HashMap<string, string> reported = new Gee.HashMap<string, string> ();
         private string focus_channel = "";
         private string focus_conversation = "";
         private bool focus_visible = false;
@@ -181,6 +182,7 @@ namespace Singularity.Apps.Messages {
             channels.unset (id);
             order.remove (id);
             convs.unset (id);
+            reported.unset (id);
             uint t;
             if (timers.unset (id, out t)) Source.remove (t);
             if (ch != null) ch.close ();
@@ -258,6 +260,7 @@ namespace Singularity.Apps.Messages {
                     }
                 }
                 bool recovered = ch.attention.has_prefix ("!");
+                reported.unset (ch.id);
                 convs[ch.id] = next;
                 if (ch.attention == "" || ch.attention.has_prefix ("!")) ch.attention = "";
                 if (differs) store.save_conversations (ch.id, next.values);
@@ -266,7 +269,7 @@ namespace Singularity.Apps.Messages {
                 if (focus_channel == ch.id && focus_conversation != "" && ch.realtime == Realtime.PUSH) yield fetch_new (ch, focus_conversation, true);
             } catch (Error e) {
                 ch.attention = "!" + e.message;
-                problem (ch.id, e.message);
+                report (ch, e.message);
                 conversations_changed ();
             } finally {
                 refreshing.remove (ch.id);
@@ -353,8 +356,14 @@ namespace Singularity.Apps.Messages {
                 var list = yield ch.messages (conversation, after == "" ? null : after, PAGE);
                 merge (ch, conversation, list, notify);
             } catch (Error e) {
-                problem (ch.id, e.message);
+                report (ch, e.message);
             }
+        }
+
+        private void report (Channel ch, string message) {
+            if (reported[ch.id] == message) return;
+            reported[ch.id] = message;
+            problem (ch.id, message);
         }
 
         private static bool echoes (Message local, Message remote) {
