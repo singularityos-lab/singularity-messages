@@ -207,6 +207,9 @@ namespace Singularity.Apps.Messages {
             var accounts_action = new SimpleAction ("accounts", null);
             accounts_action.activate.connect (() => open_accounts ());
             add_action (accounts_action);
+            var delete_code = new SimpleAction ("delete-one-time-code", VariantType.STRING);
+            delete_code.activate.connect ((v) => delete_code_message (v.get_string ()));
+            add_action (delete_code);
             var new_conv = new SimpleAction ("new-conversation", null);
             new_conv.activate.connect (() => window ().new_conversation ());
             add_action (new_conv);
@@ -313,6 +316,33 @@ namespace Singularity.Apps.Messages {
             });
         }
 
+        private Gee.HashMap<string, Message> recent_messages = new Gee.HashMap<string, Message> ();
+        private Gee.ArrayList<string> recent_order = new Gee.ArrayList<string> ();
+
+        private string remember_message (string channel, string conversation, Message m) {
+            string id = string.joinv ("\x1f", { channel, conversation, m.id });
+            recent_order.remove (id);
+            recent_order.add (id);
+            recent_messages[id] = m;
+            while (recent_order.size > 32) recent_messages.unset (recent_order.remove_at (0));
+            return id;
+        }
+
+        private void delete_code_message (string id) {
+            string[] parts = id.split ("\x1f");
+            var m = recent_messages[id];
+            if (parts.length != 3 || m == null) return;
+            var ch = engine.channel (parts[0]);
+            if (ch == null) return;
+            recent_messages.unset (id);
+            recent_order.remove (id);
+            hold ();
+            engine.remove.begin (ch, parts[1], m, (o, r) => {
+                engine.remove.end (r);
+                release ();
+            });
+        }
+
         private void on_arrived (Channel ch, Conversation c, Message m) {
             if (c.muted || (c.mentions_only && !c.mentioned)) return;
             string key = Engine.key_of (ch.id, c.id);
@@ -321,7 +351,8 @@ namespace Singularity.Apps.Messages {
             if (body == "") return;
             string ch_id = ch.id;
             string conv = c.id;
-            notifier.show.begin (key, summary, body, avatars.lookup (ch, c), (action) => {
+            string message_id = remember_message (ch_id, conv, m);
+            notifier.show.begin (key, summary, body, avatars.lookup (ch, c), message_id, (action) => {
                 if (action == "read") {
                     var channel = engine.channel (ch_id);
                     if (channel != null) engine.mark_read.begin (channel, conv);

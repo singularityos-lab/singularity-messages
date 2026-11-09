@@ -183,7 +183,7 @@ namespace Singularity.Apps.Messages {
             }
         }
 
-        public async void show (string key, string summary, string body, string? image, owned NotificationActivated on_action, owned NotificationReplied on_reply) {
+        public async void show (string key, string summary, string body, string? image, string message_id, owned NotificationActivated on_action, owned NotificationReplied on_reply) {
             if (bus == null) return;
             var past = lines[key];
             if (past == null) {
@@ -197,6 +197,8 @@ namespace Singularity.Apps.Messages {
             hints.add ("{sv}", "category", new Variant.string ("im.received"));
             hints.add ("{sv}", "x-kde-reply-placeholder-text", new Variant.string (_("Reply")));
             if (image != null) hints.add ("{sv}", "image-path", new Variant.string (image));
+            if (message_id != "") hints.add ("{sv}", "x-sinty-message-id", new Variant.string (message_id));
+            hints.add ("{sv}", "x-sinty-message-text", new Variant.string (body));
             string[] actions = { "default", _("Open"), "inline-reply", _("Reply"), "read", _("Mark as Read") };
             uint32 replaces = by_key.has_key (key) ? by_key[key] : 0;
             try {
