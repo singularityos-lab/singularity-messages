@@ -31,6 +31,7 @@ core = files(
   'src/providers/google_chat.vala',
   'src/providers/teams.vala',
   'src/providers/sms.vala',
+  'src/providers/modem.vala',
   'src/providers/nearby.vala',
   'src/providers/socket.vala',
   'src/providers/groups.vala',

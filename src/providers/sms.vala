@@ -8,6 +8,7 @@ namespace Singularity.Apps.Messages {
         public string icon_name { owned get { return "phone-symbolic"; } }
 
         private Gee.HashMap<string, SmsChannel> known = new Gee.HashMap<string, SmsChannel> ();
+        private Gee.HashMap<string, ModemSmsChannel> modems = new Gee.HashMap<string, ModemSmsChannel> ();
         private bool wired = false;
         private bool listed = false;
 
@@ -20,7 +21,10 @@ namespace Singularity.Apps.Messages {
                     var ch = known[device];
                     if (ch != null) ch.on_changed ();
                 });
+                ModemClient.get_default ().changed.connect (() => channels_changed ());
             }
+            var modem = ModemClient.get_default ();
+            yield modem.start ();
             if (client.devices.size == 0 && !listed) {
                 listed = true;
                 yield client.refresh ();
@@ -36,6 +40,14 @@ namespace Singularity.Apps.Messages {
                 ch.title = d.name;
                 string why = d.reachable ? "" : _("%s is not reachable").printf (d.name);
                 ch.attention = why;
+                list.add (ch);
+            }
+            foreach (var path in modem.modems) {
+                var ch = modems[path];
+                if (ch == null) {
+                    ch = new ModemSmsChannel (path, modem.labels[path] ?? _("SIM"));
+                    modems[path] = ch;
+                }
                 list.add (ch);
             }
             return list;
