@@ -51,7 +51,7 @@ namespace Singularity.Apps.Messages {
             Variant reply;
             try {
                 reply = yield bus.call (NAME, ROOT, "org.freedesktop.DBus.ObjectManager", "GetManagedObjects", null,
-                    new VariantType ("(a{oa{sa{sv}}})"), DBusCallFlags.NO_AUTO_START, -1);
+                    new VariantType ("(a{oa{sa{sv}}})"), DBusCallFlags.NONE, -1);
             } catch (Error e) {
                 if (modems.size > 0) {
                     modems.clear ();
