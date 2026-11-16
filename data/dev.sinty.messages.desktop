@@ -6,6 +6,7 @@ Icon=dev.sinty.messages
 Terminal=false
 Type=Application
 Categories=Network;Chat;InstantMessaging;
+X-Sinty-FormFactors=desktop;tablet;phone
 Keywords=chat;messages;talk;nextcloud;teams;google;sms;im;
 StartupWMClass=dev.sinty.messages
 Actions=new-conversation;
