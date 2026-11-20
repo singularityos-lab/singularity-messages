@@ -16,6 +16,7 @@ namespace Singularity.Apps.Messages {
         private Stack list_stack;
         private StatusPage list_empty;
         private Stack chat_stack;
+        private SplitView split;
         private ListBox thread;
         private ScrolledWindow thread_scroll;
         private ChatAvatar head_avatar;
@@ -42,7 +43,7 @@ namespace Singularity.Apps.Messages {
             engine = app.engine;
             set_title (_("Messages"));
             set_default_size (1180, 780);
-            set_size_request (420, 480);
+            set_size_request (360, 480);
 
             sidebar = new AppSidebar (220);
             sidebar_box = new Box (Orientation.VERTICAL, 2);
@@ -66,6 +67,7 @@ namespace Singularity.Apps.Messages {
             main_stack.transition_type = StackTransitionType.CROSSFADE;
             main_stack.add_named (build_welcome (), "welcome");
             main_stack.add_named (build_main (), "main");
+            split.attach_back_bubble (this);
             overlay = new Overlay ();
             overlay.child = main_stack;
             set_content (overlay);
@@ -176,20 +178,15 @@ namespace Singularity.Apps.Messages {
             chat_stack.add_named (none, "none");
             chat_stack.add_named (build_chat (), "chat");
             chat_stack.hexpand = true;
-            chat_stack.set_size_request (380, -1);
 
-            var paned = new Paned (Orientation.HORIZONTAL);
-            paned.start_child = list_pane;
-            paned.end_child = chat_stack;
-            paned.resize_start_child = false;
-            paned.shrink_start_child = false;
-            paned.shrink_end_child = false;
-            paned.position = 340;
-            paned.wide_handle = false;
-            paned.vexpand = true;
+            split = new SplitView (list_pane, chat_stack);
+            split.list_width = 340;
+            split.detail_min_width = 380;
+            split.vexpand = true;
+            split.back_requested.connect (() => list.unselect_all ());
 
             var page = new Box (Orientation.VERTICAL, 0);
-            page.append (paned);
+            page.append (split);
             Singularity.Widgets.apply_view_edge (page);
             return page;
         }
@@ -502,6 +499,7 @@ namespace Singularity.Apps.Messages {
         }
 
         public void open_entry (Channel ch, string conversation) {
+            split.show_detail = true;
             if (open_channel == ch && open_conversation == conversation) {
                 sync_focus ();
                 return;
