@@ -1,0 +1,232 @@
+{
+ "format": 1,
+ "canvas": [
+  236,
+  236
+ ],
+ "box": [
+  0,
+  0,
+  222,
+  224
+ ],
+ "stack": [
+  {
+   "layer": "layers/000.svg",
+   "piece": "answer"
+  },
+  {
+   "layer": "layers/001.svg",
+   "piece": "answer"
+  },
+  {
+   "clip": "M130 22H192C209 22 222 35 222 52V100C222 117 209 130 192 130H186L188 154C188 159 183 161 179 158L150 130H130C113 130 100 117 100 100V52C100 35 113 22 130 22Z",
+   "stack": [
+    {
+     "layer": "layers/002.svg",
+     "piece": "answer"
+    }
+   ]
+  },
+  {
+   "rim": "M130 22H192C209 22 222 35 222 52V100C222 117 209 130 192 130H186L188 154C188 159 183 161 179 158L150 130H130C113 130 100 117 100 100V52C100 35 113 22 130 22Z",
+   "light": [
+    100.0,
+    22.0,
+    222.0,
+    161.0
+   ],
+   "piece": "answer"
+  },
+  {
+   "layer": "layers/004.svg",
+   "piece": "message"
+  },
+  {
+   "layer": "layers/005.svg",
+   "piece": "message"
+  },
+  {
+   "clip": "M52 70H138C155 70 168 83 168 100V156C168 173 155 186 138 186H92L58 212C53 216 47 213 49 207L56 186H52C35 186 22 173 22 156V100C22 83 35 70 52 70Z",
+   "stack": [
+    {
+     "layer": "layers/006.svg",
+     "piece": "message"
+    }
+   ]
+  },
+  {
+   "rim": "M52 70H138C155 70 168 83 168 100V156C168 173 155 186 138 186H92L58 212C53 216 47 213 49 207L56 186H52C35 186 22 173 22 156V100C22 83 35 70 52 70Z",
+   "light": [
+    22.0,
+    70.0,
+    168.0,
+    216.0
+   ],
+   "piece": "message"
+  },
+  {
+   "shadow": {
+    "dx": 0,
+    "dy": 2,
+    "blur": 2,
+    "color": "#0b2a66",
+    "opacity": 0.45,
+    "region": [
+     40,
+     110,
+     110,
+     50
+    ]
+   },
+   "stack": [
+    {
+     "layer": "layers/008.svg",
+     "piece": "dot-0"
+    },
+    {
+     "layer": "layers/009.svg",
+     "piece": "dot-1"
+    },
+    {
+     "layer": "layers/010.svg",
+     "piece": "dot-2"
+    }
+   ]
+  }
+ ],
+ "motion": [
+  {
+   "piece": "answer",
+   "origin": [
+    150.0,
+    160.0
+   ],
+   "tracks": [
+    {
+     "kind": "scale",
+     "from": [
+      0.1,
+      0.1
+     ],
+     "at": 430,
+     "duration": 250,
+     "ease": "spring"
+    },
+    {
+     "kind": "opacity",
+     "from": [
+      0
+     ],
+     "at": 430,
+     "duration": 50,
+     "ease": "linear"
+    },
+    {
+     "kind": "opacity",
+     "from": [
+      1
+     ],
+     "at": 680,
+     "duration": 75,
+     "ease": "linear"
+    }
+   ]
+  },
+  {
+   "piece": "message",
+   "origin": [
+    50.0,
+    216.0
+   ],
+   "tracks": []
+  },
+  {
+   "piece": "dot-0",
+   "origin": [
+    64.0,
+    128.0
+   ],
+   "tracks": [
+    {
+     "kind": "translate",
+     "from": [
+      0,
+      9.44
+     ],
+     "at": 40,
+     "duration": 70,
+     "ease": "linear"
+    },
+    {
+     "kind": "translate",
+     "from": [
+      0,
+      -9.44
+     ],
+     "at": 110,
+     "duration": 70,
+     "ease": "linear"
+    }
+   ]
+  },
+  {
+   "piece": "dot-1",
+   "origin": [
+    95.0,
+    128.0
+   ],
+   "tracks": [
+    {
+     "kind": "translate",
+     "from": [
+      0,
+      9.44
+     ],
+     "at": 110,
+     "duration": 70,
+     "ease": "linear"
+    },
+    {
+     "kind": "translate",
+     "from": [
+      0,
+      -9.44
+     ],
+     "at": 180,
+     "duration": 70,
+     "ease": "linear"
+    }
+   ]
+  },
+  {
+   "piece": "dot-2",
+   "origin": [
+    126.0,
+    128.0
+   ],
+   "tracks": [
+    {
+     "kind": "translate",
+     "from": [
+      0,
+      9.44
+     ],
+     "at": 180,
+     "duration": 70,
+     "ease": "linear"
+    },
+    {
+     "kind": "translate",
+     "from": [
+      0,
+      -9.44
+     ],
+     "at": 250,
+     "duration": 70,
+     "ease": "linear"
+    }
+   ]
+  }
+ ]
+}

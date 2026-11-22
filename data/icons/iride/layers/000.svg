@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="236" height="236" viewBox="0 0 236 236" fill="none"><defs><linearGradient id="back_depth" x1="96" y1="22" x2="222" y2="168" gradientUnits="userSpaceOnUse">
+<stop offset="0%" stop-color="#128a57" />
+<stop offset="100%" stop-color="#075c39" />
+</linearGradient>
+</defs><path d="M130 30H192C209 30 222 43 222 60V108C222 125 209 138 192 138H186L188 162C188 167 183 169 179 166L150 138H130C113 138 100 125 100 108V60C100 43 113 30 130 30Z" fill="url(#back_depth)" />
+</svg>

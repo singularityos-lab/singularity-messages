@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="236" height="236" viewBox="0 0 236 236" fill="none"><defs><linearGradient id="main_front" x1="18" y1="70" x2="168" y2="214" gradientUnits="userSpaceOnUse">
+<stop offset="0%" stop-color="#7cc4ff" />
+<stop offset="55%" stop-color="#2f8cf0" />
+<stop offset="100%" stop-color="#1a5fc9" />
+</linearGradient>
+<filter id="shadow_main" x="4" y="58" width="180" height="172" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0b2a66" flood-opacity="0.55" /></filter>
+</defs><path d="M52 70H138C155 70 168 83 168 100V156C168 173 155 186 138 186H92L58 212C53 216 47 213 49 207L56 186H52C35 186 22 173 22 156V100C22 83 35 70 52 70Z" fill="url(#main_front)" filter="url(#shadow_main)" />
+</svg>
