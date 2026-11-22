@@ -88,7 +88,11 @@ namespace Singularity.Apps.Messages {
 
         public async Variant call (string path, string iface, string method, Variant? args, string reply_type) throws Error {
             if (bus == null) throw new MessagingError.NOT_SUPPORTED (_("No modem"));
-            return yield bus.call (NAME, path, iface, method, args, new VariantType (reply_type), DBusCallFlags.NONE, 60000);
+            try {
+                return yield bus.call (NAME, path, iface, method, args, new VariantType (reply_type), DBusCallFlags.NONE, 60000);
+            } catch (Error e) {
+                throw new MessagingError.PROTOCOL (Singularity.ModemError.describe (e));
+            }
         }
 
         public async Variant props_of (string path, string iface) throws Error {
