@@ -91,6 +91,10 @@ namespace Singularity.Apps.Messages {
             engine.problem.connect ((ch, msg) => {
                 if (open_channel != null && open_channel.id == ch) show_toast (msg);
             });
+            engine.network_problem.connect ((ch, msg) => {
+                if (open_channel != null && open_channel.id == ch)
+                    present_toast (Singularity.ModemError.toast_for (msg, "network-mobile"));
+            });
             app.avatars.ready.connect ((key) => {
                 var row = rows[key];
                 if (row != null) row.bind (row.entry, app.avatars.lookup (row.entry.channel, row.entry.conversation));
@@ -854,8 +858,12 @@ namespace Singularity.Apps.Messages {
         }
 
         public void show_toast (string text) {
+            present_toast (new Singularity.Widgets.Toast (text));
+        }
+
+        private void present_toast (Singularity.Widgets.Toast toast) {
             if (last_toast != null) last_toast.dismiss ();
-            last_toast = new Singularity.Widgets.Toast (text);
+            last_toast = toast;
             add_toast (last_toast);
         }
 

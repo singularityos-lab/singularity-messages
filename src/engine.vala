@@ -84,6 +84,7 @@ namespace Singularity.Apps.Messages {
         public signal void conversations_changed ();
         public signal void messages_changed (string channel, string conversation);
         public signal void problem (string channel, string message);
+        public signal void network_problem (string channel, string message);
         public signal void arrived (Channel channel, Conversation conversation, Message message);
         public signal void received (Channel channel, string conversation, Message message);
 
@@ -637,7 +638,9 @@ namespace Singularity.Apps.Messages {
                 pending.state = MessageState.FAILED;
                 mark_dirty (ch.id, conversation);
                 messages_changed (ch.id, conversation);
-                problem (ch.id, _("Not sent: %s").printf (e.message));
+                string text = _("Not sent: %s").printf (e.message);
+                if (e is MessagingError.NETWORK && ch.id.has_prefix ("sms:modem:")) network_problem (ch.id, text);
+                else problem (ch.id, text);
             }
         }
 

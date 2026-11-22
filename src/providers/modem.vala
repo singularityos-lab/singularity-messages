@@ -91,7 +91,9 @@ namespace Singularity.Apps.Messages {
             try {
                 return yield bus.call (NAME, path, iface, method, args, new VariantType (reply_type), DBusCallFlags.NONE, 60000);
             } catch (Error e) {
-                throw new MessagingError.PROTOCOL (Singularity.ModemError.describe (e));
+                string text = Singularity.ModemError.describe (e);
+                if (Singularity.ModemError.settings_page (e) != null) throw new MessagingError.NETWORK (text);
+                throw new MessagingError.PROTOCOL (text);
             }
         }
 
