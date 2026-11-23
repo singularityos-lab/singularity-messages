@@ -60,6 +60,7 @@ namespace Singularity.Apps.Messages {
     public class MessagesApp : Singularity.Application {
         public Store store;
         public Engine engine;
+        private HubBridge? hub = null;
         public Avatars avatars;
         public Notifier notifier;
         public Singularity.AppPluginHost plugins;
@@ -123,6 +124,7 @@ namespace Singularity.Apps.Messages {
             engine.conversations_changed.connect (() => notifier.badge (engine.unread_total ()));
             if ((flags & ApplicationFlags.IS_SERVICE) != 0) inactivity_timeout = 30000;
             start_engine ();
+            hub = new HubBridge (this);
         }
 
         private void start_engine () {

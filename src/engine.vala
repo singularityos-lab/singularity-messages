@@ -586,6 +586,14 @@ namespace Singularity.Apps.Messages {
             }
         }
 
+        public void mark_unread (Channel ch, string conversation) {
+            var c = find_conversation (ch.id, conversation);
+            if (c == null || c.unread > 0) return;
+            c.unread = 1;
+            mark_conversations_dirty (ch.id);
+            conversations_changed ();
+        }
+
         public void mark_all_read () {
             foreach (var ch in channels.values) {
                 var map = convs[ch.id];
