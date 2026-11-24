@@ -57,7 +57,7 @@ namespace Singularity.Apps.Messages {
         }
     }
 
-    public class MessagesApp : Singularity.Application, Singularity.Migration.Migratable {
+    public class MessagesApp : Singularity.Application, Singularity.Migration.Migratable, Singularity.Startup.Bootable {
         public Store store;
         public Engine engine;
         private HubBridge? hub = null;
@@ -253,7 +253,44 @@ namespace Singularity.Apps.Messages {
             return w;
         }
 
-        protected override void activate () {
+        public Singularity.Startup.Plan build_plan (Singularity.Startup.Request request) {
+            var plan = new Singularity.Startup.Plan ();
+            plan.version = "messages-1";
+            if (request.kind == Singularity.Startup.RequestKind.SERVICE) {
+                plan.main ("ready", Singularity.Startup.Category.PREPARE, (c) => {})
+                    .reaches (Singularity.Startup.Milestone.SHELL_READY)
+                    .reaches (Singularity.Startup.Milestone.CONTENT_READY)
+                    .reaches (Singularity.Startup.Milestone.INTERACTIVE);
+                return plan;
+            }
+            if (request.kind == Singularity.Startup.RequestKind.OPEN) {
+                var files = request.files ();
+                plan.main ("window", Singularity.Startup.Category.SHELL, (c) => {
+                    var w = window ();
+                    w.present ();
+                    c.window = w;
+                }).reaches (Singularity.Startup.Milestone.SHELL_READY);
+                plan.main ("open-file", Singularity.Startup.Category.CONTENT, (c) => open_files (files))
+                    .depends_on ("window")
+                    .reaches (Singularity.Startup.Milestone.CONTENT_READY)
+                    .reaches (Singularity.Startup.Milestone.INTERACTIVE);
+                return plan;
+            }
+            plan.main ("window", Singularity.Startup.Category.SHELL, (c) => {
+                show_window ();
+                c.window = get_active_window ();
+            }).reaches (Singularity.Startup.Milestone.SHELL_READY)
+              .reaches (Singularity.Startup.Milestone.CONTENT_READY)
+              .reaches (Singularity.Startup.Milestone.INTERACTIVE);
+            return plan;
+        }
+
+        public void handle_request (Singularity.Startup.Request request) {
+            if (request.kind == Singularity.Startup.RequestKind.OPEN) open_files (request.files ());
+            else show_window ();
+        }
+
+        private void show_window () {
             var w = window ();
             w.present ();
             if (pending_action == "new-conversation") {
@@ -314,7 +351,7 @@ namespace Singularity.Apps.Messages {
             return fresh;
         }
 
-        protected override void open (File[] files, string hint) {
+        private void open_files (File[] files) {
             var w = window ();
             w.present ();
             foreach (var f in files) {
