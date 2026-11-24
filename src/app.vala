@@ -57,7 +57,7 @@ namespace Singularity.Apps.Messages {
         }
     }
 
-    public class MessagesApp : Singularity.Application {
+    public class MessagesApp : Singularity.Application, Singularity.Migration.Migratable {
         public Store store;
         public Engine engine;
         private HubBridge? hub = null;
@@ -260,6 +260,58 @@ namespace Singularity.Apps.Messages {
                 pending_action = null;
                 w.new_conversation ();
             }
+        }
+
+        public Variant save_model () {
+            var all = new VariantBuilder (new VariantType ("a{ss}"));
+            foreach (var e in drafts.entries) all.add ("{ss}", e.key, e.value);
+            var d = new VariantDict ();
+            d.insert_value ("drafts", all.end ());
+            return d.end ();
+        }
+
+        public async void restore_model (Variant model) throws Error {
+            var saved = new VariantDict (model).lookup_value ("drafts", new VariantType ("a{ss}"));
+            if (saved == null) return;
+            string key, text;
+            var it = saved.iterator ();
+            while (it.next ("{ss}", out key, out text)) {
+                if (drafts[key] != text) drafts_put (key, text);
+            }
+        }
+
+        public string window_kind (Gtk.Window window) {
+            return (window is MessagesWindow) ? "messages" : "";
+        }
+
+        public Variant save_window (Gtk.Window window) {
+            return ((MessagesWindow) window).save_migration ();
+        }
+
+        public string[] files () {
+            string[] all = {};
+            foreach (var w in get_windows ()) {
+                var mw = w as MessagesWindow;
+                if (mw == null) continue;
+                foreach (var f in mw.migration_files ()) all += f;
+            }
+            return all;
+        }
+
+        public async Gtk.Window? rebuild_window (string kind, Variant data) throws Error {
+            if (kind != "messages") return null;
+            MessagesWindow[] stale = {};
+            foreach (var existing in get_windows ()) {
+                var mw = existing as MessagesWindow;
+                if (mw != null) stale += mw;
+            }
+            foreach (var mw in stale) {
+                mw.save_draft ();
+                mw.destroy ();
+            }
+            var fresh = new MessagesWindow (this);
+            fresh.restore_migration (data);
+            return fresh;
         }
 
         protected override void open (File[] files, string hint) {

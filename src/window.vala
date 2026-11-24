@@ -534,6 +534,56 @@ namespace Singularity.Apps.Messages {
             }
         }
 
+        public Variant save_migration () {
+            var d = new VariantDict ();
+            d.insert_value ("filter", new Variant.string (filter));
+            if (open_channel != null) {
+                d.insert_value ("open", new Variant ("(ss)", open_channel.id, open_conversation));
+                d.insert_value ("detail", new Variant.boolean (split.show_detail));
+                d.insert_value ("composer", composer.save_state ());
+            }
+            return d.end ();
+        }
+
+        public string[] migration_files () {
+            return open_channel != null ? composer.files () : new string[0];
+        }
+
+        public void restore_migration (Variant data) {
+            string channel = "";
+            var open = new VariantDict (data).lookup_value ("open", new VariantType ("(ss)"));
+            if (open != null) channel = open.get_child_value (0).get_string ();
+            if (channel == "" || engine.channel (channel) != null) {
+                apply_migration (data);
+                return;
+            }
+            ulong id = 0;
+            id = engine.channels_changed.connect (() => {
+                if (engine.channel (channel) == null) return;
+                engine.disconnect (id);
+                apply_migration (data);
+            });
+        }
+
+        private void apply_migration (Variant data) {
+            var d = new VariantDict (data);
+            string saved_filter;
+            if (d.lookup ("filter", "s", out saved_filter) && nav_rows.has_key (saved_filter) && saved_filter != filter) {
+                filter = saved_filter;
+                foreach (var e in nav_rows.entries) e.value.set_active (e.key == filter);
+                queue_rebuild ();
+            }
+            string channel, conversation;
+            if (!d.lookup ("open", "(ss)", out channel, out conversation)) return;
+            var ch = engine.channel (channel);
+            if (ch == null) return;
+            open_entry (ch, conversation);
+            bool detail;
+            if (d.lookup ("detail", "b", out detail)) split.show_detail = detail;
+            var saved = d.lookup_value ("composer", new VariantType ("(sssas)"));
+            if (saved != null) composer.restore_state (saved, engine.messages (channel, conversation));
+        }
+
         public void open_by_id (string channel, string conversation) {
             var ch = engine.channel (channel);
             if (ch == null) return;

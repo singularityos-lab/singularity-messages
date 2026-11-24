@@ -230,6 +230,34 @@ namespace Singularity.Apps.Messages {
             focus_entry ();
         }
 
+        public Variant save_state () {
+            var files = new VariantBuilder (new VariantType ("as"));
+            foreach (var f in pending) files.add ("s", Singularity.Migration.portable_path (f));
+            return new Variant ("(sss@as)", mode, target != null ? target.id : "", text (), files.end ());
+        }
+
+        public string[] files () {
+            string[] all = {};
+            foreach (var f in pending) all += Singularity.Migration.portable_path (f);
+            return all;
+        }
+
+        public void restore_state (Variant state, Gee.List<Message> messages) {
+            string saved_mode, target_id, saved_text;
+            Variant files;
+            state.get ("(sss@as)", out saved_mode, out target_id, out saved_text, out files);
+            foreach (var m in messages) {
+                if (m.id != target_id) continue;
+                if (saved_mode == "reply") reply_to (m);
+                else if (saved_mode == "edit") edit (m);
+                break;
+            }
+            set_text (saved_text);
+            string path;
+            var it = files.iterator ();
+            while (it.next ("s", out path)) add_file (Singularity.Migration.local_file (path));
+        }
+
         public bool has_files () {
             return pending.size > 0;
         }
